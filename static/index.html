@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pataware - Nền tảng Phòng chống & Cảnh báo Lừa đảo Trực tuyến</title>
+    <!-- Thư viện Tailwind CSS hỗ trợ tiện ích giao diện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bộ biểu tượng Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Thư viện vẽ biểu đồ thống kê Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Tệp định kiểu CSS riêng biệt -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <!-- Thanh điều hướng (Navbar) -->
+    <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 bg-clip-text text-transparent">PATAWARE</span>
+                    <span class="text-[10px] uppercase tracking-widest text-cyan-400 block font-semibold">Anti-Scam AI & Network Defense</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6 text-sm font-medium">
+                <a href="#scanner" class="hover:text-cyan-400 transition-colors">Kiểm Tra Rủi Ro</a>
+                <a href="#stats" class="hover:text-cyan-400 transition-colors">Bản Đồ Xu Hướng</a>
+                <a href="#community" class="hover:text-cyan-400 transition-colors">Góc Chia Sẻ</a>
+                <a href="#quiz" class="hover:text-cyan-400 transition-colors">Trắc Nghiệm An Toàn</a>
+                <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs">
+                    <i class="fa-solid fa-code mr-1"></i> FastAPI Docs
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Khu vực Banner và Bộ công cụ Quét Rủi ro (Scanner) -->
+    <section id="scanner" class="py-12 px-4 max-w-5xl mx-auto">
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/60 text-cyan-400 text-xs font-semibold mb-4">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span>Hybrid Risk Engine v1.0 • Tích hợp AI & Kỹ thuật Mạng</span>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">
+                Phát hiện & Ngăn chặn <br class="hidden sm:inline"/>
+                <span class="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500 bg-clip-text text-transparent">Lừa Đảo Trực Tuyến Đa Tầng</span>
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">
+                Kiểm tra tức thì đường dẫn URL, số tài khoản ngân hàng, số điện thoại, kịch bản thao túng tâm lý hoặc tải ảnh chụp màn hình để bóc tách bằng OCR.
+            </p>
+        </div>
+
+        <!-- Khung giao diện Bộ Quét Rủi Ro -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl shadow-cyan-950/30">
+            <!-- Các Tab lựa chọn loại dữ liệu đầu vào -->
+            <div class="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-4" id="scanTabs">
+                <button onclick="setScanType('url')" id="tab-url" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/25 flex items-center space-x-2">
+                    <i class="fa-solid fa-link"></i> <span>Đường dẫn URL</span>
+                </button>
+                <button onclick="setScanType('bank_account')" id="tab-bank_account" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-building-columns"></i> <span>Số Tài Khoản</span>
+                </button>
+                <button onclick="setScanType('phone')" id="tab-phone" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-phone"></i> <span>Số Điện Thoại</span>
+                </button>
+                <button onclick="setScanType('text')" id="tab-text" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-comment-dots"></i> <span>Đoạn Chat / SMS</span>
+                </button>
+                <button onclick="setScanType('image')" id="tab-image" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-camera"></i> <span>Bóc Tách Ảnh (OCR)</span>
+                </button>
+            </div>
+
+            <!-- Khung nhập liệu văn bản -->
+            <div id="textInputContainer" class="space-y-4">
+                <div class="relative">
+                    <input type="text" id="scanInput" placeholder="Ví dụ: vietc0mbank-portal.xyz hoặc https://sh0pee-vn.com" 
+                           class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pl-11 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-slate-100 placeholder-slate-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-500 text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Khung tải tệp hình ảnh để bóc tách OCR (Ẩn mặc định) -->
+            <div id="imageInputContainer" class="hidden space-y-4">
+                <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500/50 transition-colors bg-slate-950/50 cursor-pointer" onclick="document.getElementById('imageFileInput').click()">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-cyan-400 mb-2"></i>
+                    <p class="text-sm font-medium text-slate-300">Tải lên ảnh chụp màn hình tin nhắn hoặc hóa đơn chuyển khoản</p>
+                    <p class="text-xs text-slate-500 mt-1">Hỗ trợ PNG, JPG, JPEG (Bóc tách chữ tự động bằng Tesseract OCR)</p>
+                    <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="previewSelectedImage(event)">
+                    <div id="imageFileName" class="mt-2 text-xs font-semibold text-cyan-400 hidden"></div>
+                </div>
+            </div>
+
+            <!-- Nút bấm kích hoạt kiểm tra -->
+            <div class="mt-5 flex justify-end">
+                <button type="button" onclick="performScan()" id="btnScan" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/25 flex items-center space-x-2 transition-all">
+                    <i class="fa-solid fa-shield-virus"></i>
+                    <span>Kiểm Tra Toàn Diện Ngay</span>
+                </button>
+            </div>
+
+            <!-- Khu vực hiển thị kết quả phân tích -->
+            <div id="scanResultArea" class="hidden mt-8 pt-8 border-t border-slate-800">
+                <!-- Nội dung kết quả sẽ được inject động từ script.js -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Khu vực Bảng điều khiển Thống kê & Bản đồ Xu hướng (Dashboard) -->
+    <section id="stats" class="py-12 px-4 max-w-7xl mx-auto border-t border-slate-900">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-slate-100 flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-pie text-cyan-400"></i>
+                    <span>Bản Đồ Xu Hướng & Thống Kê Thời Gian Thực</span>
+                </h2>
+                <p class="text-sm text-slate-400 mt-1">Tổng hợp dữ liệu rủi ro từ các lượt kiểm tra mạng và báo cáo từ cộng đồng</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex space-x-3 text-xs">
+                <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
+                    <span class="text-slate-400 block">Lượt kiểm tra:</span>
+                    <span id="statTotalScans" class="text-lg font-bold text-cyan-400">0</span>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
+                    <span class="text-slate-400 block">Nguy cơ đã chặn:</span>
+                    <span id="statThreatsBlocked" class="text-lg font-bold text-rose-500">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Biểu đồ 1: Phân bổ hình thức lừa đảo -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
+                    <span>Phân Bố Thủ Đoạn Lừa Đảo</span>
+                    <i class="fa-solid fa-circle-info text-slate-600 text-xs"></i>
+                </h3>
+                <div class="h-64 flex items-center justify-center">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Biểu đồ 2: Xu hướng 7 ngày -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
+                    <span>Xu Hướng Cảnh Báo 7 Ngày Qua</span>
+                    <i class="fa-solid fa-chart-line text-slate-600 text-xs"></i>
+                </h3>
+                <div class="h-64">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Danh sách: Top đối tượng bị tố cáo nhiều nhất -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
+                    <span>Top Đối Tượng Bị Tố Cáo Nhiều Nhất</span>
+                    <span class="text-[10px] bg-rose-950 text-rose-400 border border-rose-800/50 px-2 py-0.5 rounded font-mono">BLACKLIST</span>
+                </h3>
+                <div class="space-y-3" id="topScammersList">
+                    <!-- Danh sách được nạp động từ script.js -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Khu vực Góc Chia Sẻ Ẩn Danh (Community & ScamGuard) -->
+    <section id="community" class="py-12 px-4 max-w-7xl mx-auto border-t border-slate-900">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-slate-100 flex items-center space-x-2">
+                    <i class="fa-solid fa-users text-cyan-400"></i>
+                    <span>Góc Chia Sẻ Ẩn Danh (ScamGuard)</span>
+                </h2>
+                <p class="text-sm text-slate-400 mt-1">Bảo vệ quyền riêng tư người dùng bằng bộ lọc PII Redaction tự động che mờ CCCD, SĐT cá nhân</p>
+            </div>
+            <button onclick="openStoryModal()" class="mt-4 md:mt-0 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 text-xs font-semibold flex items-center space-x-2 transition-all">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Gửi Câu Chuyện Cảnh Giác</span>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="storiesContainer">
+            <!-- Danh sách bài viết được inject động từ script.js -->
+        </div>
+    </section>
+
+    <!-- Khu vực Gamification Trắc Nghiệm Tình Huống (Quiz) -->
+    <section id="quiz" class="py-12 px-4 max-w-4xl mx-auto border-t border-slate-900">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold tracking-tight text-slate-100 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-gamepad text-cyan-400"></i>
+                <span>Trắc Nghiệm Nhận Diện Thủ Đoạn Lừa Đảo</span>
+            </h2>
+            <p class="text-sm text-slate-400 mt-1">Luyện tập kỹ năng thực chiến và ghi lại phản xạ an toàn qua các tình huống giả lập</p>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6" id="quizContainer">
+            <div id="quizContent" class="space-y-6">
+                <!-- Câu hỏi trắc nghiệm được nạp động từ script.js -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Hộp thoại Modal gửi câu chuyện chia sẻ -->
+    <div id="storyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-100">Chia sẻ tình huống lừa đảo</h3>
+                <button onclick="closeStoryModal()" class="text-slate-500 hover:text-slate-300"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Tiêu đề cảnh báo</label>
+                    <input type="text" id="modalTitle" placeholder="Ví dụ: Bẫy tuyển CTV nạp tiền giật đơn Shopee..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Hình thức lừa đảo</label>
+                    <select id="modalScamType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
+                        <option value="job_offer">Tuyển dụng CTV / Làm nhiệm vụ</option>
+                        <option value="financial_investment">Đầu tư tài chính / Tiền ảo</option>
+                        <option value="impersonation">Mạo danh cơ quan / Ngân hàng</option>
+                        <option value="phishing_link">Đường link đánh cắp OTP</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Nội dung chi tiết (Hệ thống sẽ tự động che mờ CCCD, SĐT cá nhân của bạn)</label>
+                    <textarea id="modalContent" rows="4" placeholder="Kể lại chi tiết diễn biến để cộng đồng cảnh giác..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Thông tin kẻ lừa đảo (nếu có: STK, SĐT, Link)</label>
+                    <input type="text" id="modalScammerInfo" placeholder="STK 1903... Techcombank hoặc 0879..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button onclick="closeStoryModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Hủy</button>
+                <button onclick="submitNewStory()" class="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950">Gửi Ẩn Danh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chân trang (Footer) -->
+    <footer class="border-t border-slate-900 py-8 text-center text-xs text-slate-500">
+        <p>© 2026 Pataware Anti-Scam Platform. Xây dựng vì một không gian mạng Việt Nam an toàn & văn minh.</p>
+    </footer>
+
+    <!-- Tệp xử lý mã nguồn JavaScript riêng biệt -->
+    <script src="script.js"></script>
+</body>
+</html>

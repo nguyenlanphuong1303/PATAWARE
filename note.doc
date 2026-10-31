@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset="utf-8">
+    <title>BÁO CÁO & KẾ HOẠCH TRIỂN KHAI DỰ ÁN PATAWARE</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt; margin: 40px; color: #111; }
+        h1 { color: #003366; text-align: center; font-size: 20pt; text-transform: uppercase; margin-bottom: 5px; }
+        h2 { color: #004080; font-size: 15pt; border-bottom: 2px solid #004080; padding-bottom: 4px; margin-top: 25px; }
+        h3 { color: #0059b3; font-size: 13pt; margin-top: 15px; }
+        p { text-align: justify; margin-bottom: 8px; }
+        ul, ol { margin-top: 4px; margin-bottom: 10px; }
+        li { margin-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #999; padding: 8px 12px; text-align: left; }
+        th { background-color: #f2f7fc; color: #003366; font-weight: bold; }
+        .highlight { background-color: #fffde7; padding: 2px 5px; border-left: 3px solid #fbc02d; }
+        .footer-note { font-style: italic; color: #555; text-align: right; margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>BÁO CÁO THUYẾT MINH & KẾ HOẠCH PHÁT TRIỂN HỆ THỐNG PATAWARE</h1>
+    <p style="text-align: center; font-style: italic; font-size: 11pt;">
+        Đề tài: "Xây dựng hệ thống phát hiện và cảnh báo lừa đảo trực tuyến tích hợp trí tuệ nhân tạo và phân tích kỹ thuật mạng"
+    </p>
+
+    <h2>1. ĐẶT VẤN ĐỀ & TÍNH CẤP THIẾT CỦA ĐỀ TÀI</h2>
+    <p>
+        Trong kỷ nguyên chuyển đổi số và bùng nổ thương mại điện tử, các hình thức lừa đảo trực tuyến (phishing, mạo danh thương hiệu ngân hàng, đầu tư tài chính ảo, bẫy việc làm cộng tác viên giật đơn, đánh cắp mã OTP) đang gia tăng với tốc độ chóng mặt và diễn biến vô cùng tinh vi. Kẻ gian không chỉ sử dụng các kịch bản thao túng tâm lý bằng văn bản mà còn tạo ra hàng loạt đường dẫn giả mạo (phishing links) có giao diện và tên miền giống hệt ngân hàng, sàn TMĐT để chiếm đoạt tài sản người dùng.
+    </p>
+    <p>
+        Đa số người dân sập bẫy do thiếu công cụ kiểm tra tự động, nhanh chóng và thiếu nguồn tham khảo các vụ việc thực tế. Đề tài <strong>PATAWARE</strong> ra đời nhằm cung cấp một giải pháp công nghệ toàn diện, kết hợp giữa <strong>Trí tuệ nhân tạo (AI/OCR)</strong>, <strong>Phân tích kỹ thuật tầng mạng (WHOIS, Levenshtein, Punycode)</strong> và <strong>Sức mạnh cộng đồng</strong> để bảo vệ người dùng trên không gian số.
+    </p>
+
+    <h2>2. MỤC TIÊU CỦA ĐỀ TÀI</h2>
+    <ul>
+        <li><strong>Mục tiêu kỹ thuật:</strong> Xây dựng nền tảng Web hiện đại (Python FastAPI + SQLite/MySQL), xử lý bất đồng bộ cao; tích hợp bộ chấm điểm rủi ro đa tầng (Hybrid Risk Engine) kết hợp kiểm tra danh sách đen, giải thuật đối soát khoảng cách chuỗi Levenshtein, kiểm tra tuổi tên miền qua WHOIS và phân tích tâm lý bằng AI (LLM & OCR).</li>
+        <li><strong>Mục tiêu xã hội & cộng đồng:</strong> Tạo lập không gian chia sẻ kinh nghiệm an toàn cho nạn nhân (ScamGuard) có tích hợp bộ lọc tự động che mờ thông tin cá nhân (PII Redaction); nâng cao kỹ năng phòng ngừa qua trắc nghiệm tương tác (Gamification) và cung cấp bức tranh toàn cảnh về lừa đảo qua bản đồ xu hướng thời gian thực.</li>
+    </ul>
+
+    <h2>3. CÁC CHỨC NĂNG CỐT LÕI ĐÃ TRIỂN KHAI HOÀN CHỈNH</h2>
+    
+    <h3>3.1. Bộ Chấm Điểm Rủi Ro Đa Tầng (Hybrid Risk Engine)</h3>
+    <p>Đầu vào linh hoạt cho phép người dùng kiểm tra: đường dẫn URL, số tài khoản ngân hàng, số điện thoại, tin nhắn văn bản và hình ảnh chụp màn hình qua OCR. Điểm rủi ro được tổng hợp theo công thức trọng số từ 0 đến 100 điểm:</p>
+    <table>
+        <tr>
+            <th>Tầng đánh giá</th>
+            <th>Trọng số</th>
+            <th>Tiêu chí xác định</th>
+        </tr>
+        <tr>
+            <td><strong>Danh sách đen (Blacklist)</strong></td>
+            <td>30%</td>
+            <td>Khớp số tài khoản, số điện thoại, URL đã bị tố cáo và xác minh.</td>
+        </tr>
+        <tr>
+            <td><strong>Kỹ thuật tầng mạng (Network/Domain)</strong></td>
+            <td>35%</td>
+            <td>Tên miền &lt; 30 ngày (+35đ), Typosquatting nhái ngân hàng (+45đ), Punycode (+35đ).</td>
+        </tr>
+        <tr>
+            <td><strong>Phân tích Ngữ cảnh & AI</strong></td>
+            <td>35%</td>
+            <td>Phát hiện thủ đoạn ép thời gian khẩn cấp, đòi OTP, nạp tiền làm nhiệm vụ.</td>
+        </tr>
+    </table>
+
+    <h3>3.2. Trình Phân Tích Kỹ Thuật URL & Tên Miền Độc Hại (Điểm nhấn kỹ thuật số 1)</h3>
+    <ul>
+        <li><strong>Truy vấn tuổi tên miền (Domain Age Lookup):</strong> Gửi truy vấn WHOIS xác định ngày đăng ký; cảnh báo đỏ đối với tên miền đăng ký dưới 30 ngày (dấu hiệu của 95% website lừa đảo).</li>
+        <li><strong>Phát hiện mạo danh thương hiệu (Typosquatting):</strong> Dùng thuật toán khoảng cách chuỗi <em>Levenshtein Distance</em> đối chiếu với danh sách hơn 20 ngân hàng và sàn TMĐT lớn tại Việt Nam (Vietcombank, MBBank, Techcombank, Shopee,...).</li>
+        <li><strong>Phát hiện tấn công đồng hình (Homoglyph & Punycode):</strong> Bắt bẫy tiền tố <code>xn--</code> và các ký tự giả mạo thị giác phi chuẩn.</li>
+    </ul>
+
+    <h3>3.3. Bản Đồ Xu Hướng & Thống Kê Thời Gian Thực (Điểm nhấn xã hội số 2)</h3>
+    <ul>
+        <li>Biểu đồ Doughnut Chart phân tích cơ cấu các hình thức lừa đảo phổ biến.</li>
+        <li>Biểu đồ Line Chart theo dõi xu hướng tấn công trong 7 ngày gần nhất.</li>
+        <li>Bảng xếp hạng Top số tài khoản ngân hàng và tên miền bị báo cáo nhiều nhất.</li>
+    </ul>
+
+    <h3>3.4. Góc Chia Sẻ Cộng Đồng & Ẩn Danh Hóa PII (ScamGuard)</h3>
+    <ul>
+        <li>Tự động nhận diện và che mờ <strong>Căn cước công dân (12 số)</strong>, <strong>CMND (9 số)</strong>, <strong>Số điện thoại cá nhân</strong> và <strong>Số tài khoản ngân hàng</strong> trước khi công khai.</li>
+        <li>Bảo vệ danh tính nạn nhân theo Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân.</li>
+    </ul>
+
+    <h3>3.5. Module Học Tập & Trắc Nghiệm Tình Huống (Gamification)</h3>
+    <p>Mô phỏng các tình huống thực tế: mạo danh ngân hàng khóa thẻ, tuyển dụng cộng tác viên nạp tiền giật đơn, cuộc gọi Deepfake mượn tiền; đi kèm lời giải thích giáo dục chi tiết.</p>
+
+    <h2>4. NỘI DUNG VÀ KẾ HOẠCH PHÁT TRIỂN TIẾP THEO (ROADMAP)</h2>
+    <div class="highlight">
+        <p><strong>Các hạng mục muốn làm trong các giai đoạn tiếp theo:</strong></p>
+        <ol>
+            <li><strong>Xây dựng Tiện ích mở rộng Trình duyệt (Chrome/Edge Extension):</strong> Tự động quét và cảnh báo đỏ ngay trên thanh địa chỉ khi người dùng vô tình truy cập vào đường link phishing độc hại.</li>
+            <li><strong>Mở rộng tính năng phát hiện Biên lai chuyển tiền giả mạo (Fake Bank Receipt Detection):</strong> Sử dụng thị giác máy tính (Computer Vision) kết hợp OCR để kiểm tra font chữ, độ lệch pixel, dấu vân nước và mã giao dịch trên ảnh chụp biên lai ngân hàng.</li>
+            <li><strong>Tích hợp Cơ sở dữ liệu Quốc gia và API Ngân hàng mở:</strong> Kết nối trực tiếp với cổng thông tin an toàn không gian mạng (NCSC) để đồng bộ danh sách đen tự động theo thời gian thực.</li>
+            <li><strong>Hệ thống cảnh báo qua Telegram Bot / Zalo OA:</strong> Cho phép người dùng chuyển tiếp tin nhắn đáng ngờ vào bot để nhận kết quả phân tích rủi ro trong vòng 3 giây.</li>
+            <li><strong>Hoàn thiện ứng dụng di động (Flutter / Android):</strong> Giúp người già và người yếu thế về công nghệ có thể tra cứu nhanh chóng số điện thoại lạ trước khi nghe máy.</li>
+        </ol>
+    </div>
+
+    <h2>5. HƯỚNG DẪN KHỞI CHẠY HỆ THỐNG</h2>
+    <ol>
+        <li><strong>Mở giao diện Web:</strong> Nhấp đúp chuột vào tệp <code>static/index.html</code> để trải nghiệm ngay giao diện và bộ mô phỏng offline.</li>
+        <li><strong>Chạy Backend Server:</strong>
+            <pre style="background: #eee; padding: 10px; border-radius: 5px;">
+cd E:\PATAWARE
+pip install -r requirements.txt
+python run.py
+            </pre>
+        </li>
+        <li><strong>Truy cập API Swagger:</strong> <code>http://localhost:8000/docs</code></li>
+    </ol>
+
+    <div class="footer-note">
+        Tài liệu được khởi tạo và lưu trữ tại hệ thống <strong>E:\PATAWARE\note.doc</strong> - Bản quyền © 2026 Đề tài Pataware.
+    </div>
+
+</body>
+</html>

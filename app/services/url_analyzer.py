@@ -1,0 +1,254 @@
+import re
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+import tldextract
+
+try:
+    import Levenshtein
+except ImportError:
+    Levenshtein = None
+
+try:
+    import whois
+except ImportError:
+    whois = None
+
+# Danh sách các thương hiệu ngân hàng, sàn thương mại điện tử và dịch vụ công phổ biến tại Việt Nam
+# Dùng để đối soát phát hiện hành vi cố tình tạo tên miền nhái (Typosquatting)
+DEFAULT_POPULAR_BRANDS = [
+    {"name": "Vietcombank", "keyword": "vietcombank", "domain": "vietcombank.com.vn"},
+    {"name": "MBBank", "keyword": "mbbank", "domain": "mbbank.com.vn"},
+    {"name": "Techcombank", "keyword": "techcombank", "domain": "techcombank.com"},
+    {"name": "BIDV", "keyword": "bidv", "domain": "bidv.com.vn"},
+    {"name": "Agribank", "keyword": "agribank", "domain": "agribank.com.vn"},
+    {"name": "VPBank", "keyword": "vpbank", "domain": "vpbank.com.vn"},
+    {"name": "ACB", "keyword": "acb", "domain": "acb.com.vn"},
+    {"name": "TPBank", "keyword": "tpbank", "domain": "tpb.vn"},
+    {"name": "Sacombank", "keyword": "sacombank", "domain": "sacombank.com.vn"},
+    {"name": "VietinBank", "keyword": "vietinbank", "domain": "vietinbank.vn"},
+    {"name": "MoMo", "keyword": "momo", "domain": "momo.vn"},
+    {"name": "ZaloPay", "keyword": "zalopay", "domain": "zalopay.vn"},
+    {"name": "VNPay", "keyword": "vnpay", "domain": "vnpay.vn"},
+    {"name": "Shopee", "keyword": "shopee", "domain": "shopee.vn"},
+    {"name": "Lazada", "keyword": "lazada", "domain": "lazada.vn"},
+    {"name": "Tiki", "keyword": "tiki", "domain": "tiki.vn"},
+    {"name": "TikTok Shop", "keyword": "tiktok", "domain": "tiktok.com"},
+    {"name": "VNeID", "keyword": "vneid", "domain": "vneid.gov.vn"},
+    {"name": "VNPost", "keyword": "vnpost", "domain": "vnpost.vn"},
+    {"name": "ViettelPost", "keyword": "viettelpost", "domain": "viettelpost.com.vn"},
+    {"name": "Telegram", "keyword": "telegram", "domain": "telegram.org"},
+    {"name": "Facebook", "keyword": "facebook", "domain": "facebook.com"}
+]
+
+
+class DeepUrlAnalyzer:
+    """
+    Trình phân tích kỹ thuật URL & Tên miền độc hại (Điểm nhấn kỹ thuật số 1):
+    - Kiểm tra tuổi thọ tên miền thông qua truy vấn WHOIS (phát hiện tên miền dưới 30 ngày)
+    - Phát hiện mạo danh thương hiệu (Typosquatting) bằng thuật toán khoảng cách chuỗi Levenshtein
+    - Phát hiện tấn công ký tự đồng hình (Homoglyph Attack) và mã hóa quốc tế Punycode (xn--)
+    """
+
+    @staticmethod
+    def extract_domain_info(url_or_domain: str) -> Dict[str, str]:
+        """Chuẩn hóa đường dẫn URL và bóc tách tên miền gốc, tên miền phụ (subdomain) và phần mở rộng (suffix)."""
+        target = url_or_domain.strip().lower()
+        if not target.startswith("http://") and not target.startswith("https://"):
+            target = "https://" + target
+        
+        extracted = tldextract.extract(target)
+        registered_domain = extracted.registered_domain
+        domain_name = extracted.domain
+        subdomain = extracted.subdomain
+        suffix = extracted.suffix
+
+        return {
+            "normalized_url": target,
+            "registered_domain": registered_domain,
+            "domain_name": domain_name,
+            "subdomain": subdomain,
+            "suffix": suffix,
+            "full_host": f"{subdomain}.{registered_domain}".strip(".") if subdomain else registered_domain
+        }
+
+    @staticmethod
+    def check_homoglyph_and_punycode(domain_info: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Kiểm tra mã hóa Punycode (tiền tố xn--) và các ký tự đồng hình phi chuẩn (ví dụ: chữ Cyrillic 'а', 'е', 'о' giả chữ Latin).
+        """
+        registered = domain_info.get("registered_domain", "")
+        full_host = domain_info.get("full_host", "")
+
+        is_punycode = "xn--" in registered.lower() or "xn--" in full_host.lower()
+
+        # Kiểm tra sự xuất hiện của ký tự ngoài bảng mã ASCII thường dùng để đánh lừa thị giác người dùng
+        non_ascii_chars = [ch for ch in full_host if ord(ch) > 127]
+        is_homoglyph = is_punycode or len(non_ascii_chars) > 0
+
+        reasons = []
+        if is_punycode:
+            reasons.append("Tên miền sử dụng mã hóa quốc tế Punycode (xn--), dấu hiệu che giấu ký tự giả mạo.")
+        if non_ascii_chars:
+            reasons.append(f"Tên miền chứa các ký tự phi chuẩn/đồng hình: {''.join(set(non_ascii_chars))}")
+
+        return {
+            "is_punycode": is_punycode,
+            "is_homoglyph": is_homoglyph,
+            "non_ascii_chars": list(set(non_ascii_chars)),
+            "reasons": reasons
+        }
+
+    @classmethod
+    def check_typosquatting(cls, domain_info: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Sử dụng thuật toán khoảng cách chuỗi Levenshtein Distance và luật ngữ nghĩa để phát hiện cố ý nhái tên thương hiệu.
+        Ví dụ: 'vietc0mbank', 'sh0pee-vn', 'mbbank-online'.
+        """
+        domain_name = domain_info.get("domain_name", "").lower()
+        full_host = domain_info.get("full_host", "").lower()
+
+        detected = False
+        target_brand = None
+        reasons = []
+        best_similarity = 0.0
+
+        for brand in DEFAULT_POPULAR_BRANDS:
+            keyword = brand["keyword"].lower()
+            official_domain = brand["domain"].lower()
+
+            # Nếu trùng khớp hoàn toàn với tên miền chính thức của thương hiệu -> An toàn
+            if domain_info.get("registered_domain", "").lower() == official_domain:
+                continue
+
+            # Kiểm tra xem tên miền có chứa từ khóa thương hiệu kèm các hậu tố bẫy hay không
+            # Ví dụ: 'vietcombank-otp.com', 'mbbank-xacthuc.xyz'
+            phishing_tokens = ["login", "dangnhap", "otp", "xacthuc", "online", "bank", "vn", "support", "cskh", "nhanthuong"]
+            if keyword in domain_name or keyword in full_host:
+                detected = True
+                target_brand = brand["name"]
+                reasons.append(
+                    f"Tên miền chứa từ khóa thương hiệu '{brand['name']}' nhưng không phải tên miền chính thức ({official_domain})."
+                )
+                best_similarity = 0.95
+                break
+
+            # Tính toán khoảng cách Levenshtein nếu độ dài xấp xỉ
+            if Levenshtein and abs(len(domain_name) - len(keyword)) <= 3:
+                dist = Levenshtein.distance(domain_name, keyword)
+                ratio = Levenshtein.ratio(domain_name, keyword)
+
+                # Khoảng cách 1 hoặc 2 ký tự với tỷ lệ tương đồng cao là dấu hiệu cố tình gõ nhái
+                if 1 <= dist <= 2 and ratio >= 0.75:
+                    detected = True
+                    target_brand = brand["name"]
+                    best_similarity = ratio
+                    reasons.append(
+                        f"Phát hiện thủ đoạn mạo danh (Typosquatting) gần giống thương hiệu '{brand['name']}' (Khoảng cách ký tự: {dist}, tỷ lệ tương đồng: {ratio:.1%})."
+                    )
+                    break
+
+        return {
+            "typosquatting_detected": detected,
+            "target_brand": target_brand,
+            "similarity_score": best_similarity,
+            "reasons": reasons
+        }
+
+    @staticmethod
+    def check_domain_age(domain: str) -> Dict[str, Any]:
+        """
+        Truy vấn thông tin WHOIS để xác định ngày đăng ký và tính tuổi tên miền theo số ngày.
+        Tên miền dưới 30 ngày là dấu hiệu điển hình của hạ tầng lừa đảo dùng một lần.
+        """
+        if not whois:
+            return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
+
+        try:
+            w = whois.whois(domain)
+            creation_date = w.creation_date
+
+            # WHOIS có thể trả về một danh sách các ngày
+            if isinstance(creation_date, list) and creation_date:
+                creation_date = creation_date[0]
+
+            if not creation_date:
+                return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
+
+            # Chuẩn hóa múi giờ
+            if creation_date.tzinfo is not None:
+                now = datetime.now(timezone.utc)
+            else:
+                now = datetime.utcnow()
+
+            age_days = (now - creation_date).days
+            is_new = age_days <= 30
+            is_recent = age_days <= 90
+
+            reasons = []
+            if is_new:
+                reasons.append(f"Tên miền mới được đăng ký cách đây {age_days} ngày (< 30 ngày). Dấu hiệu đặc trưng của 95% website lừa đảo.")
+            elif is_recent:
+                reasons.append(f"Tên miền còn tương đối mới ({age_days} ngày, < 90 ngày), cần thận trọng.")
+
+            return {
+                "age_days": age_days,
+                "creation_date": creation_date.isoformat(),
+                "is_new_domain": is_new,
+                "is_recent_domain": is_recent,
+                "reasons": reasons
+            }
+        except Exception:
+            # Xử lý ngoại lệ nếu WHOIS bị chặn hoặc tên miền quốc gia không hỗ trợ
+            return {
+                "age_days": None,
+                "creation_date": None,
+                "is_new_domain": False,
+                "reasons": []
+            }
+
+    @classmethod
+    def analyze(cls, url_or_domain: str) -> Dict[str, Any]:
+        """Thực thi toàn diện các bước kiểm tra kỹ thuật tầng mạng cho tên miền."""
+        domain_info = cls.extract_domain_info(url_or_domain)
+        reg_domain = domain_info.get("registered_domain") or domain_info.get("full_host")
+
+        homoglyph_res = cls.check_homoglyph_and_punycode(domain_info)
+        typosquat_res = cls.check_typosquatting(domain_info)
+        whois_res = cls.check_domain_age(reg_domain) if reg_domain else {"age_days": None, "reasons": []}
+
+        all_reasons = homoglyph_res["reasons"] + typosquat_res["reasons"] + whois_res.get("reasons", [])
+
+        # Tính toán điểm rủi ro kỹ thuật cho tên miền (0 - 100)
+        tech_score = 0
+        if typosquat_res["typosquatting_detected"]:
+            tech_score += 45
+        if homoglyph_res["is_homoglyph"]:
+            tech_score += 35
+        if whois_res.get("is_new_domain"):
+            tech_score += 35
+        elif whois_res.get("is_recent_domain"):
+            tech_score += 15
+
+        # Kiểm tra phần mở rộng tên miền (TLD) giá rẻ có tỷ lệ rủi ro cao
+        suspicious_tld = [".top", ".xyz", ".club", ".vip", ".work", ".site", ".online", ".icu", ".cam"]
+        for tld in suspicious_tld:
+            if domain_info.get("registered_domain", "").endswith(tld):
+                tech_score += 15
+                all_reasons.append(f"Tên miền sử dụng phần mở rộng rủi ro cao ({tld}) thường xuyên bị kẻ gian lợi dụng do chi phí rẻ.")
+                break
+
+        tech_score = min(tech_score, 100)
+
+        return {
+            "domain_info": domain_info,
+            "registered_domain": reg_domain,
+            "technical_risk_score": tech_score,
+            "age_days": whois_res.get("age_days"),
+            "creation_date": whois_res.get("creation_date"),
+            "is_new_domain": whois_res.get("is_new_domain", False),
+            "is_punycode_homoglyph": homoglyph_res["is_homoglyph"],
+            "typosquatting_detected": typosquat_res["typosquatting_detected"],
+            "impersonated_brand": typosquat_res["target_brand"],
+            "similarity_score": typosquat_res.get("similarity_score"),
+            "reasons": all_reasons
+        }
