@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CẢNH BÁO NGUY HIỂM: Trang Web Lừa Đảo Đã Bị Chặn - PATAWARE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 50px rgba(239, 68, 68, 0.8), inset 0 0 25px rgba(239, 68, 68, 0.4); }
+        }
+        .shield-glow {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 selection:bg-rose-500 selection:text-white">
+    <div class="max-w-2xl w-full bg-slate-900/95 border border-rose-600/40 rounded-3xl p-6 sm:p-10 shadow-2xl shadow-rose-950/60 relative overflow-hidden backdrop-blur-xl">
+        <!-- Vòng hào quang đỏ bảo mật phía trên -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-rose-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="text-center">
+            <!-- Icon Khiên Cảnh Báo -->
+            <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-3xl bg-rose-600/15 border border-rose-500/50 flex items-center justify-center shield-glow mb-6">
+                <i id="warningIcon" class="fa-solid fa-shield-virus text-4xl sm:text-5xl text-rose-500"></i>
+            </div>
+
+            <!-- Tiêu đề cảnh báo lớn -->
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-rose-950/80 border border-rose-700/60 text-rose-400 text-xs font-bold uppercase tracking-wider mb-3">
+                <i id="warningBadgeIcon" class="fa-solid fa-triangle-exclamation"></i>
+                <span id="warningBadgeText">PATAWARE Anti-Scam Shield • Chặn Tự Động</span>
+            </div>
+            
+            <h1 id="warningTitle" class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+                Cảnh Báo: Trang Web Lừa Đảo Đã Bị Ngăn Chặn!
+            </h1>
+            
+            <p id="warningSubtitle" class="text-slate-300 text-sm sm:text-base mt-2 max-w-lg mx-auto">
+                Hệ thống an ninh mạng đã chủ động chặn truy cập vào trang này để bảo vệ thông tin thẻ ngân hàng, tài khoản và mật khẩu của bạn.
+            </p>
+        </div>
+
+        <!-- Khung chi tiết mối đe dọa -->
+        <div class="mt-8 bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 text-xs sm:text-sm gap-2">
+                <span class="text-slate-400">Trang web đích:</span>
+                <span id="targetDomainDisplay" class="font-mono font-bold text-rose-400 break-all">Đang tải...</span>
+            </div>
+
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 text-xs sm:text-sm">
+                <span class="text-slate-400">Chỉ số rủi ro (Risk Score):</span>
+                <span class="font-extrabold text-rose-500 text-base flex items-center gap-1.5">
+                    <span id="riskScoreDisplay">95</span>/100
+                    <span class="text-[11px] font-semibold bg-rose-950 text-rose-300 border border-rose-800/60 px-2 py-0.5 rounded">NGUY HIỂM</span>
+                </span>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-slate-300 block mb-2">Bằng chứng & Dấu hiệu kỹ thuật phát hiện:</span>
+                <ul id="reasonsList" class="space-y-1.5 text-xs text-rose-300/90">
+                    <li class="flex items-start space-x-2">
+                        <i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5"></i>
+                        <span>Phát hiện mạo danh cổng đăng nhập ngân hàng hoặc tổ chức tài chính.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Các nút hành động chính -->
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <!-- Nút Quay lại an toàn (Khuyên dùng) -->
+            <button id="btnGoBack" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Quay Lại Vùng An Toàn (Khuyên Dùng)</span>
+            </button>
+
+            <!-- Nút Mở Chi tiết / Bỏ qua -->
+            <button id="btnToggleAdvanced" class="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-medium transition-colors">
+                Nâng cao
+            </button>
+        </div>
+
+        <!-- Khu vực nâng cao (Bỏ qua cảnh báo) -->
+        <div id="advancedSection" class="hidden mt-6 pt-5 border-t border-slate-800/80 text-center">
+            <p class="text-xs text-slate-500 max-w-md mx-auto mb-3">
+                Cảnh báo: Nếu bạn tiếp tục truy cập, kẻ tấn công có thể đánh cắp mật khẩu, mã OTP hoặc thông tin thẻ ngân hàng của bạn.
+            </p>
+            <button id="btnProceedAnyway" class="text-xs text-rose-400/80 hover:text-rose-400 underline underline-offset-4 font-mono transition-colors">
+                Tôi hiểu rủi ro và vẫn muốn truy cập trang web này (Không khuyên dùng)
+            </button>
+        </div>
+
+        <div class="mt-8 text-center text-[11px] text-slate-600 flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-shield-halved text-cyan-500"></i>
+            <span>Được bảo vệ bởi PATAWARE Security & Threat Intelligence Engine</span>
+        </div>
+    </div>
+
+    <script src="warning.js"></script>
+</body>
+</html>

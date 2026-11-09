@@ -42,6 +42,7 @@ E:\PATAWARE\
 ├── run.py                           # Entrypoint khởi chạy server Uvicorn
 ├── requirements.txt                 # Danh mục thư viện phụ thuộc
 ├── .env.example                     # Mẫu biến môi trường
+├── .env                             # File cấu hình môi trường thực tế
 └── README.md
 ```
 
@@ -88,12 +89,7 @@ pip install -r requirements.txt
 ```
 
 ### Bước 3: Cấu hình biến môi trường (`.env`)
-Tạo file `.env` từ mẫu và đặt khóa bí mật riêng dài ít nhất 32 ký tự trước khi chạy:
-```powershell
-Copy-Item .env.example .env
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-Sao chép giá trị được tạo vào `SECRET_KEY` trong `.env`. Không chia sẻ hoặc commit file `.env`. Hệ thống dùng SQLite `pataware.db` theo mặc định, không bắt buộc cài MySQL.
+Chỉnh sửa file `.env` nếu cần (Mặc định hệ thống dùng SQLite `pataware.db` để chạy ngay mà không bắt buộc cài MySQL):
 - Nếu muốn dùng MySQL:
   ```env
   DATABASE_URL=mysql+pymysql://root:password@localhost:3306/pataware_db?charset=utf8mb4

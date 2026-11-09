@@ -4,17 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pataware - Nền tảng Phòng chống & Cảnh báo Lừa đảo Trực tuyến</title>
-    <!-- Thư viện Tailwind CSS hỗ trợ tiện ích giao diện -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Bộ biểu tượng Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Thư viện vẽ biểu đồ thống kê Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Tệp định kiểu CSS riêng biệt -->
+    <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
-    <!-- Thanh điều hướng (Navbar) -->
     <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <div class="flex items-center space-x-3">
@@ -38,7 +34,6 @@
         </div>
     </nav>
 
-    <!-- Khu vực Banner và Bộ công cụ Quét Rủi ro (Scanner) -->
     <section id="scanner" class="py-12 px-4 max-w-5xl mx-auto">
         <div class="text-center mb-10">
             <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/60 text-cyan-400 text-xs font-semibold mb-4">
@@ -54,63 +49,58 @@
             </p>
         </div>
 
-        <!-- Khung giao diện Bộ Quét Rủi Ro -->
         <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl shadow-cyan-950/30">
-            <!-- Các Tab lựa chọn loại dữ liệu đầu vào -->
-            <div class="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-4" id="scanTabs">
-                <button onclick="setScanType('url')" id="tab-url" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/25 flex items-center space-x-2">
-                    <i class="fa-solid fa-link"></i> <span>Đường dẫn URL</span>
-                </button>
-                <button onclick="setScanType('bank_account')" id="tab-bank_account" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-building-columns"></i> <span>Số Tài Khoản</span>
-                </button>
-                <button onclick="setScanType('phone')" id="tab-phone" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-phone"></i> <span>Số Điện Thoại</span>
-                </button>
-                <button onclick="setScanType('text')" id="tab-text" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-comment-dots"></i> <span>Đoạn Chat / SMS</span>
-                </button>
-                <button onclick="setScanType('image')" id="tab-image" class="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-camera"></i> <span>Bóc Tách Ảnh (OCR)</span>
-                </button>
-            </div>
+            <!-- Thanh tìm kiếm đa năng thông minh (Tất cả trong 1) -->
+            <div class="relative">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-500 text-sm pointer-events-none"></i>
+                    <textarea id="scanInput" rows="1" 
+                           placeholder="Nhập đường dẫn URL, số tài khoản, số điện thoại, đoạn chat SMS hoặc tải ảnh/file..." 
+                           class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3.5 pl-11 pr-36 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-slate-100 placeholder-slate-500 resize-none leading-relaxed"></textarea>
+                    
+                    <!-- Mục thêm file, ảnh ở cuối thanh tìm kiếm -->
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                        <button type="button" onclick="document.getElementById('imageFileInput').click()" 
+                                title="Đính kèm file hoặc ảnh bóc tách (OCR)" 
+                                class="px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border border-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm">
+                            <i class="fa-solid fa-paperclip"></i>
+                            <i class="fa-solid fa-image"></i>
+                            <span>Thêm file, ảnh</span>
+                        </button>
+                        <input type="file" id="imageFileInput" accept="image/*,.pdf" class="hidden" onchange="previewSelectedImage(event)">
+                    </div>
+                </div>
 
-            <!-- Khung nhập liệu văn bản -->
-            <div id="textInputContainer" class="space-y-4">
-                <div class="relative">
-                    <input type="text" id="scanInput" placeholder="Ví dụ: vietc0mbank-portal.xyz hoặc https://sh0pee-vn.com" 
-                           class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pl-11 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-slate-100 placeholder-slate-500">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-500 text-sm"></i>
+                <!-- Thẻ hiển thị khi đã chọn file/ảnh -->
+                <div id="imageFileName" class="hidden mt-3 flex items-center justify-between bg-cyan-950/40 border border-cyan-800/60 px-4 py-2.5 rounded-xl text-xs text-cyan-300">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-file-image text-cyan-400 text-base"></i>
+                        <span id="imageFileLabel"></span>
+                    </div>
+                    <button type="button" onclick="clearSelectedImage()" class="text-slate-400 hover:text-rose-400 p-1" title="Xóa file/ảnh đã chọn">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
                 </div>
             </div>
 
-            <!-- Khung tải tệp hình ảnh để bóc tách OCR (Ẩn mặc định) -->
-            <div id="imageInputContainer" class="hidden space-y-4">
-                <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500/50 transition-colors bg-slate-950/50 cursor-pointer" onclick="document.getElementById('imageFileInput').click()">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-cyan-400 mb-2"></i>
-                    <p class="text-sm font-medium text-slate-300">Tải lên ảnh chụp màn hình tin nhắn hoặc hóa đơn chuyển khoản</p>
-                    <p class="text-xs text-slate-500 mt-1">Hỗ trợ PNG, JPG, JPEG (Bóc tách chữ tự động bằng Tesseract OCR)</p>
-                    <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="previewSelectedImage(event)">
-                    <div id="imageFileName" class="mt-2 text-xs font-semibold text-cyan-400 hidden"></div>
+            <!-- Gợi ý tự động nhận diện và Nút Kiểm tra -->
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="text-xs text-slate-500 flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i>
+                    <span>Tự động nhận diện URL, SĐT, STK, Đoạn Chat SMS hoặc Ảnh OCR (Hỗ trợ <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">Ctrl+V</kbd> dán ảnh)</span>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" onclick="performScan()" id="btnScan" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/25 flex items-center space-x-2 transition-all">
+                        <i class="fa-solid fa-shield-virus"></i>
+                        <span>Kiểm Tra Toàn Diện Ngay</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Nút bấm kích hoạt kiểm tra -->
-            <div class="mt-5 flex justify-end">
-                <button type="button" onclick="performScan()" id="btnScan" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/25 flex items-center space-x-2 transition-all">
-                    <i class="fa-solid fa-shield-virus"></i>
-                    <span>Kiểm Tra Toàn Diện Ngay</span>
-                </button>
-            </div>
-
-            <!-- Khu vực hiển thị kết quả phân tích -->
-            <div id="scanResultArea" class="hidden mt-8 pt-8 border-t border-slate-800">
-                <!-- Nội dung kết quả sẽ được inject động từ script.js -->
-            </div>
+            <div id="scanResultArea" class="hidden mt-8 pt-8 border-t border-slate-800"></div>
         </div>
     </section>
 
-    <!-- Khu vực Bảng điều khiển Thống kê & Bản đồ Xu hướng (Dashboard) -->
     <section id="stats" class="py-12 px-4 max-w-7xl mx-auto border-t border-slate-900">
         <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
             <div>
@@ -133,7 +123,6 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Biểu đồ 1: Phân bổ hình thức lừa đảo -->
             <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
                 <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
                     <span>Phân Bố Thủ Đoạn Lừa Đảo</span>
@@ -144,7 +133,6 @@
                 </div>
             </div>
 
-            <!-- Biểu đồ 2: Xu hướng 7 ngày -->
             <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
                 <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
                     <span>Xu Hướng Cảnh Báo 7 Ngày Qua</span>
@@ -155,20 +143,16 @@
                 </div>
             </div>
 
-            <!-- Danh sách: Top đối tượng bị tố cáo nhiều nhất -->
             <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
                 <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
                     <span>Top Đối Tượng Bị Tố Cáo Nhiều Nhất</span>
                     <span class="text-[10px] bg-rose-950 text-rose-400 border border-rose-800/50 px-2 py-0.5 rounded font-mono">BLACKLIST</span>
                 </h3>
-                <div class="space-y-3" id="topScammersList">
-                    <!-- Danh sách được nạp động từ script.js -->
-                </div>
+                <div class="space-y-3" id="topScammersList"></div>
             </div>
         </div>
     </section>
 
-    <!-- Khu vực Góc Chia Sẻ Ẩn Danh (Community & ScamGuard) -->
     <section id="community" class="py-12 px-4 max-w-7xl mx-auto border-t border-slate-900">
         <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
             <div>
@@ -184,12 +168,9 @@
             </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="storiesContainer">
-            <!-- Danh sách bài viết được inject động từ script.js -->
-        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="storiesContainer"></div>
     </section>
 
-    <!-- Khu vực Gamification Trắc Nghiệm Tình Huống (Quiz) -->
     <section id="quiz" class="py-12 px-4 max-w-4xl mx-auto border-t border-slate-900">
         <div class="text-center mb-8">
             <h2 class="text-2xl font-bold tracking-tight text-slate-100 flex items-center justify-center space-x-2">
@@ -200,13 +181,10 @@
         </div>
 
         <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6" id="quizContainer">
-            <div id="quizContent" class="space-y-6">
-                <!-- Câu hỏi trắc nghiệm được nạp động từ script.js -->
-            </div>
+            <div id="quizContent" class="space-y-6"></div>
         </div>
     </section>
 
-    <!-- Hộp thoại Modal gửi câu chuyện chia sẻ -->
     <div id="storyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <div class="flex justify-between items-center mb-4">
@@ -228,11 +206,11 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs text-slate-400 block mb-1">Nội dung chi tiết (Hệ thống sẽ tự động che mờ CCCD, SĐT cá nhân của bạn)</label>
+                    <label class="text-xs text-slate-400 block mb-1">Nội dung chi tiết (Tự động che mờ CCCD, SĐT cá nhân)</label>
                     <textarea id="modalContent" rows="4" placeholder="Kể lại chi tiết diễn biến để cộng đồng cảnh giác..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"></textarea>
                 </div>
                 <div>
-                    <label class="text-xs text-slate-400 block mb-1">Thông tin kẻ lừa đảo (nếu có: STK, SĐT, Link)</label>
+                    <label class="text-xs text-slate-400 block mb-1">Thông tin kẻ lừa đảo (STK, SĐT, Link)</label>
                     <input type="text" id="modalScammerInfo" placeholder="STK 1903... Techcombank hoặc 0879..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
                 </div>
             </div>
@@ -243,12 +221,179 @@
         </div>
     </div>
 
-    <!-- Chân trang (Footer) -->
     <footer class="border-t border-slate-900 py-8 text-center text-xs text-slate-500">
-        <p>© 2026 Pataware Anti-Scam Platform. Xây dựng vì một không gian mạng Việt Nam an toàn & văn minh.</p>
+        <p>© 2026 Pataware Anti-Scam Platform.</p>
     </footer>
 
-    <!-- Tệp xử lý mã nguồn JavaScript riêng biệt -->
-    <script src="script.js"></script>
+    <script src="/static/script.js"></script>
+    <script>
+        // Fallback in case /static/script.js fails to load
+        if (typeof window.performScan === 'undefined') {
+            document.write('<script src="script.js"><\/script>');
+        }
+    </script>
+    <!-- Khung chat AI Widget PATAWARE -->
+    <div id="pataware-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; font-family: inherit;">
+      <!-- Nút bật/tắt chat -->
+      <button id="chat-toggle-btn" style="background: linear-gradient(135deg, #06b6d4, #2563eb); color: #020617; border: none; padding: 12px 20px; border-radius: 50px; cursor: pointer; font-weight: 700; font-size: 14px; box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.4); display: flex; items-center; gap: 8px; transition: all 0.2s ease;">
+        <i class="fa-solid fa-robot" style="font-size: 16px;"></i>
+        <span>Tư vấn AI Pataware</span>
+      </button>
+      
+      <!-- Hộp thoại chat -->
+      <div id="chat-box" style="display: none; width: 360px; height: 480px; max-width: calc(100vw - 40px); max-height: calc(100vh - 100px); background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; flex-direction: column; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6); overflow: hidden; margin-bottom: 12px;">
+        <!-- Tiêu đề khung chat -->
+        <div style="background: linear-gradient(135deg, #0e7490, #1d4ed8); color: white; padding: 14px 16px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+            <span>Trợ lý AI Pataware</span>
+          </div>
+          <button id="chat-close-btn" style="background: transparent; border: none; color: #cbd5e1; cursor: pointer; font-size: 16px;">&times;</button>
+        </div>
+
+        <!-- Vùng hiển thị tin nhắn -->
+        <div id="chat-messages" style="flex: 1; padding: 14px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #f1f5f9; display: flex; flex-direction: column; gap: 10px;">
+          <div style="text-align: left;">
+            <div style="display: inline-block; background: #1e293b; color: #e2e8f0; padding: 10px 14px; border-radius: 12px; border-top-left-radius: 2px; max-width: 88%;">
+              👋 Chào bạn! Tôi là <strong>Trợ lý AI Pataware</strong>.<br>Bạn cần tư vấn về số điện thoại, tài khoản ngân hàng, đường link hay tình huống lừa đảo nào?
+            </div>
+          </div>
+        </div>
+
+        <!-- Ô nhập câu hỏi -->
+        <div style="display: flex; border-top: 1px solid #1e293b; background: #0b1120; padding: 6px;">
+          <input type="text" id="chat-input" placeholder="Hỏi về dấu hiệu lừa đảo, cách lấy lại tiền..." style="flex: 1; background: transparent; border: none; padding: 10px 12px; color: #f8fafc; font-size: 13px; outline: none;">
+          <button id="chat-send" style="background: #06b6d4; color: #020617; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 4px; transition: background 0.2s;">
+            <span>Gửi</span>
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Xử lý bật/tắt khung chat và gửi tin nhắn
+      const toggleBtn = document.getElementById('chat-toggle-btn');
+      const chatBox = document.getElementById('chat-box');
+      const closeBtn = document.getElementById('chat-close-btn');
+      const sendBtn = document.getElementById('chat-send');
+      const inputField = document.getElementById('chat-input');
+      const messagesContainer = document.getElementById('chat-messages');
+
+      toggleBtn.onclick = () => {
+        const isHidden = chatBox.style.display === 'none' || !chatBox.style.display;
+        chatBox.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) inputField.focus();
+      };
+
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          chatBox.style.display = 'none';
+        };
+      }
+
+      const sendUserMessage = async () => {
+        const text = inputField.value.trim();
+        if (!text) return;
+
+        // 1. Hiển thị tin nhắn người dùng
+        messagesContainer.innerHTML += `
+          <div style="text-align: right;">
+            <div style="display: inline-block; background: #2563eb; color: white; padding: 8px 12px; border-radius: 12px; border-top-right-radius: 2px; max-width: 85%; word-break: break-word;">
+              ${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+            </div>
+          </div>
+        `;
+        inputField.value = '';
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // 2. Hiển thị trạng thái đang soạn tin
+        const loadingId = 'loading-' + Date.now();
+        messagesContainer.innerHTML += `
+          <div id="${loadingId}" style="text-align: left;">
+            <div style="display: inline-block; background: #1e293b; color: #94a3b8; padding: 8px 12px; border-radius: 12px; border-top-left-radius: 2px; font-size: 12px;">
+              <i class="fa-solid fa-spinner fa-spin mr-1"></i> AI đang suy nghĩ...
+            </div>
+          </div>
+        `;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        try {
+          let response = null;
+          let lastError = null;
+
+          // 1. Thử gọi qua endpoint cùng domain (/api/v1/chat)
+          try {
+            response = await fetch('/api/v1/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: text })
+            });
+          } catch (e) {
+            lastError = e;
+          }
+
+          // 2. Nếu proxy không phản hồi hoặc lỗi, gọi trực tiếp localhost:8000
+          if (!response || !response.ok) {
+            try {
+              response = await fetch('http://localhost:8000/api/v1/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+              });
+            } catch (e2) {
+              lastError = e2;
+            }
+          }
+
+          if (!response) {
+            throw new Error(lastError ? lastError.message : "Không thể kết nối tới server Python (cổng 8000)");
+          }
+
+          if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Máy chủ phản hồi mã lỗi HTTP ${response.status}: ${errBody.slice(0, 150)}`);
+          }
+
+          const data = await response.json();
+          const loadingEl = document.getElementById(loadingId);
+          if (loadingEl) loadingEl.remove();
+
+          // 3. Hiển thị câu trả lời của AI
+          const formattedReply = (data.reply || '').replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          messagesContainer.innerHTML += `
+            <div style="text-align: left;">
+              <div style="display: inline-block; background: #1e293b; color: #f1f5f9; padding: 10px 14px; border-radius: 12px; border-top-left-radius: 2px; max-width: 90%; word-break: break-word;">
+                ${formattedReply}
+              </div>
+            </div>
+          `;
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } catch (err) {
+          console.error("Chat error:", err);
+          const loadingEl = document.getElementById(loadingId);
+          if (loadingEl) loadingEl.remove();
+          messagesContainer.innerHTML += `
+            <div style="text-align: left;">
+              <div style="display: inline-block; background: #450a0a; color: #f87171; padding: 8px 12px; border-radius: 12px; font-size: 12px; line-height: 1.4;">
+                ⚠️ <strong>Lỗi kết nối:</strong> ${err.message}<br>
+                <span style="color: #cbd5e1; font-size: 11px;">Mẹo: Bạn có thể thử truy cập thẳng bằng link: <a href="http://localhost:8000" target="_blank" style="color: #38bdf8; text-decoration: underline;">http://localhost:8000</a></span>
+              </div>
+            </div>
+          `;
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      };
+
+      sendBtn.onclick = sendUserMessage;
+
+      // Nhấn Enter để gửi tin nhắn
+      inputField.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendUserMessage();
+        }
+      });
+    </script>
 </body>
 </html>

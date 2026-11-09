@@ -1,66 +1,58 @@
-/**
- * ==============================================================================
- * TẬP TIN XỬ LÝ LOGIC JAVASCRIPT CHO NỀN TẢNG PATAWARE
- * ==============================================================================
- */
-
-// Biến trạng thái toàn cục
 window.currentScanType = 'url';
+window.selectedImageFile = null;
 window.categoryChartInstance = null;
 window.trendChartInstance = null;
 window.cachedQuizQuestions = [];
 
-/**
- * Chuyển đổi qua lại giữa các tab kiểm tra (URL, STK, SĐT, SMS, Ảnh OCR)
- */
-window.setScanType = function(type) {
-    window.currentScanType = type;
-    const tabs = ['url', 'bank_account', 'phone', 'text', 'image'];
-    tabs.forEach(t => {
-        const el = document.getElementById('tab-' + t);
-        if (el) {
-            if (t === type) {
-                el.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/25 flex items-center space-x-2';
-            } else {
-                el.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center space-x-2';
-            }
-        }
-    });
+// Tự động nhận diện loại dữ liệu nhập vào (All-in-one Smart Detector)
+window.detectScanType = function(val) {
+    if (window.selectedImageFile) return 'image';
+    const text = (val || '').trim();
+    if (!text) return 'url';
 
-    const textContainer = document.getElementById('textInputContainer');
-    const imageContainer = document.getElementById('imageInputContainer');
-    const inputField = document.getElementById('scanInput');
-
-    if (type === 'image') {
-        if (textContainer) textContainer.classList.add('hidden');
-        if (imageContainer) imageContainer.classList.remove('hidden');
-    } else {
-        if (textContainer) textContainer.classList.remove('hidden');
-        if (imageContainer) imageContainer.classList.add('hidden');
-        if (inputField) {
-            if (type === 'url') inputField.placeholder = "Ví dụ: vietc0mbank-portal.xyz hoặc https://sh0pee-vn.com";
-            if (type === 'bank_account') inputField.placeholder = "Ví dụ: 1029384756 (Nhập số tài khoản ngân hàng nghi vấn)";
-            if (type === 'phone') inputField.placeholder = "Ví dụ: 0879654321 (Nhập số điện thoại gọi đến)";
-            if (type === 'text') inputField.placeholder = "Dán đoạn tin nhắn SMS, tin nhắn Telegram/Zalo tuyển CTV hoặc hù dọa khóa thẻ...";
-        }
+    // 1. Nhận diện URL / Tên miền
+    const urlPattern = /^(https?:\/\/|www\.)[^\s/$.?#].[^\s]*$/i;
+    const domainPattern = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/[^\s]*)?$/i;
+    if (urlPattern.test(text) || (domainPattern.test(text) && !text.includes(' ') && text.includes('.'))) {
+        return 'url';
     }
+
+    // 2. Nhận diện Số điện thoại (9-11 số, bắt đầu bằng 0 hoặc +84 / 84)
+    const cleanDigits = text.replace(/[\s\-\.]/g, '');
+    if (/^(\+?84|0)[0-9]{8,10}$/.test(cleanDigits)) {
+        return 'phone';
+    }
+
+    // 3. Nhận diện Số tài khoản ngân hàng (toàn chữ số từ 6 - 19 ký tự)
+    if (/^[0-9]{6,19}$/.test(cleanDigits)) {
+        return 'bank_account';
+    }
+
+    // 4. Mặc định là đoạn văn bản / Tin nhắn SMS / Đoạn Chat
+    return 'text';
 };
 
-/**
- * Hiển thị tên tệp tin hình ảnh khi người dùng tải ảnh chụp màn hình lên
- */
 window.previewSelectedImage = function(event) {
-    const file = event.target.files[0];
-    const nameEl = document.getElementById('imageFileName');
-    if (file && nameEl) {
-        nameEl.textContent = 'Đã chọn: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-        nameEl.classList.remove('hidden');
+    const file = event.target.files && event.target.files[0];
+    if (file) {
+        window.selectedImageFile = file;
+        const nameEl = document.getElementById('imageFileName');
+        const labelEl = document.getElementById('imageFileLabel');
+        if (labelEl) {
+            labelEl.textContent = 'Đã chọn tệp: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        }
+        if (nameEl) nameEl.classList.remove('hidden');
     }
 };
 
-/**
- * Bộ mô phỏng giải thuật phân tích rủi ro Offline (chạy trực tiếp khi chưa bật Backend Server)
- */
+window.clearSelectedImage = function() {
+    window.selectedImageFile = null;
+    const fileInput = document.getElementById('imageFileInput');
+    if (fileInput) fileInput.value = '';
+    const nameEl = document.getElementById('imageFileName');
+    if (nameEl) nameEl.classList.add('hidden');
+};
+
 function runLocalScanSimulation(content, type) {
     const lower = (content || '').toLowerCase();
     let score = 25;
@@ -72,7 +64,6 @@ function runLocalScanSimulation(content, type) {
     let isNewDomain = false;
     let isPuny = lower.includes("xn--");
 
-    // Danh sách các ngân hàng và sàn TMĐT cần đối soát mạo danh
     const brands = [
         { name: "Vietcombank", keys: ["vietcombank", "vietc0mbank", "vcb"] },
         { name: "MBBank", keys: ["mbbank", "mb-bank", "mbbnk"] },
@@ -164,9 +155,6 @@ function runLocalScanSimulation(content, type) {
     };
 }
 
-/**
- * Hiển thị kết quả chấm điểm rủi ro trực quan lên giao diện
- */
 window.renderScanResult = function(data) {
     const resultArea = document.getElementById('scanResultArea');
     if (!resultArea) return;
@@ -244,9 +232,6 @@ window.renderScanResult = function(data) {
     resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
-/**
- * Hàm thực hiện quét rủi ro chính khi nhấn nút
- */
 window.performScan = async function() {
     const btn = document.getElementById('btnScan');
     if (btn) {
@@ -254,15 +239,16 @@ window.performScan = async function() {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Đang Phân Tích Đa Tầng...</span>';
     }
 
-    let content = '';
     const inputField = document.getElementById('scanInput');
-    if (inputField) {
-        content = inputField.value.trim();
-    }
-    if (!content) {
+    let content = inputField ? inputField.value.trim() : '';
+
+    if (!content && !window.selectedImageFile) {
         content = "vietc0mbank-portal.xyz";
         if (inputField) inputField.value = content;
     }
+
+    const scanType = window.selectedImageFile ? 'image' : window.detectScanType(content);
+    window.currentScanType = scanType;
 
     const isLocalFile = window.location.protocol === 'file:';
     let data = null;
@@ -270,25 +256,43 @@ window.performScan = async function() {
     if (!isLocalFile && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 1200);
-            const res = await fetch("/api/v1/scan/inspect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ input_type: window.currentScanType, content: content }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-                data = await res.json();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            if (window.selectedImageFile) {
+                const formData = new FormData();
+                formData.append("file", window.selectedImageFile);
+                const res = await fetch("/api/v1/scan/ocr-inspect", {
+                    method: "POST",
+                    body: formData,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (res.ok) data = await res.json();
+            } else {
+                const res = await fetch("/api/v1/scan/inspect", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ input_type: scanType, content: content }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (res.ok) data = await res.json();
             }
-        } catch (err) {}
+        } catch (err) {
+            console.warn("API request failed or timed out, falling back to local heuristic simulation:", err);
+        }
     }
 
     if (!data) {
-        data = runLocalScanSimulation(content, window.currentScanType);
+        data = runLocalScanSimulation(window.selectedImageFile ? (window.selectedImageFile.name || "screenshot.png") : content, scanType);
     }
 
     window.renderScanResult(data);
+
+    // Cập nhật số liệu thống kê thời gian thực ngay lập tức
+    if (typeof window.loadDashboardStats === 'function') {
+        window.loadDashboardStats();
+    }
 
     if (btn) {
         btn.disabled = false;
@@ -296,9 +300,6 @@ window.performScan = async function() {
     }
 };
 
-/**
- * Tải dữ liệu thống kê bảng điều khiển và vẽ biểu đồ thời gian thực
- */
 window.loadDashboardStats = async function() {
     let stats = null;
     if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
@@ -389,7 +390,7 @@ window.loadDashboardStats = async function() {
                 });
             }
         } catch (chartErr) {
-            console.warn("Lỗi vẽ biểu đồ:", chartErr);
+            console.warn(chartErr);
         }
     }
 
@@ -407,9 +408,6 @@ window.loadDashboardStats = async function() {
     }
 };
 
-/**
- * Tải danh sách bài viết chia sẻ từ cộng đồng (đã che mờ thông tin định danh cá nhân PII)
- */
 window.loadStories = function() {
     const container = document.getElementById('storiesContainer');
     if (!container) return;
@@ -482,9 +480,6 @@ window.submitNewStory = function() {
     window.closeStoryModal();
 };
 
-/**
- * Tải bộ câu hỏi trắc nghiệm tình huống lừa đảo
- */
 window.loadQuiz = function() {
     window.cachedQuizQuestions = [
         {
@@ -567,13 +562,59 @@ window.submitQuizAnswers = function() {
     alert(`Kết quả: Bạn đạt ${correctCount}/${window.cachedQuizQuestions.length} câu (${pct}%). Hãy đọc phần giải thích chi tiết phía dưới.`);
 };
 
-// Gắn lắng nghe sự kiện khi tài liệu HTML đã tải xong cấu trúc DOM
 document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('btnScan');
     if (btn) {
         btn.addEventListener('click', window.performScan);
     }
+
+    const scanInput = document.getElementById('scanInput');
+    if (scanInput) {
+        // Tự động điều chỉnh chiều cao khi gõ nhiều dòng (đoạn chat/tin nhắn)
+        scanInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 180) + 'px';
+        });
+
+        // Nhấn Enter để quét ngay (Shift + Enter để xuống dòng)
+        scanInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                window.performScan();
+            }
+        });
+
+        // Hỗ trợ dán ảnh chụp màn hình trực tiếp bằng Ctrl + V vào ô tìm kiếm
+        scanInput.addEventListener('paste', function(e) {
+            const items = (e.clipboardData || window.clipboardData)?.items;
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                            window.selectedImageFile = file;
+                            const nameEl = document.getElementById('imageFileName');
+                            const labelEl = document.getElementById('imageFileLabel');
+                            if (labelEl) {
+                                labelEl.textContent = 'Ảnh chụp màn hình vừa dán (' + (file.size / 1024).toFixed(1) + ' KB)';
+                            }
+                            if (nameEl) nameEl.classList.remove('hidden');
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
     window.loadDashboardStats();
     window.loadStories();
     window.loadQuiz();
+
+    // Tự động đồng bộ số liệu thời gian thực định kỳ mỗi 10 giây
+    setInterval(function() {
+        if (typeof window.loadDashboardStats === 'function') {
+            window.loadDashboardStats();
+        }
+    }, 10000);
 });

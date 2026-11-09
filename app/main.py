@@ -84,6 +84,16 @@ def read_root():
     }
 
 
+@app.get("/script.js")
+def get_script_js():
+    return FileResponse(os.path.join(static_dir, "script.js"))
+
+
+@app.get("/style.css")
+def get_style_css():
+    return FileResponse(os.path.join(static_dir, "style.css"))
+
+
 @app.get("/health")
 def health_check():
     """Kiểm tra trạng thái hoạt động của hệ thống."""

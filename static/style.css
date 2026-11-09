@@ -1,8 +1,3 @@
-/* ==========================================================================
-   TẬP TIN ĐỊNH KIỂU CSS CHO NỀN TẢNG CẢNH BÁO LỪA ĐẢO PATAWARE
-   ========================================================================== */
-
-/* Cài đặt phông chữ và nền tảng giao diện */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
@@ -23,7 +18,6 @@ body {
     overflow-x: hidden;
 }
 
-/* Tùy chỉnh thanh cuộn đẹp mắt */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -42,7 +36,6 @@ body {
     background: #334155;
 }
 
-/* Hiệu ứng phát sáng neon cho huy hiệu và tiêu đề */
 .glow-cyan {
     box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
 }
@@ -51,7 +44,6 @@ body {
     box-shadow: 0 0 20px rgba(244, 63, 94, 0.25);
 }
 
-/* Hiệu ứng chuyển động thẻ khi hover */
 .card-hover {
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -62,7 +54,6 @@ body {
     box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.1);
 }
 
-/* Định dạng huy hiệu mức độ rủi ro */
 .badge-danger {
     background-color: rgba(244, 63, 94, 0.1);
     border: 1px solid rgba(244, 63, 94, 0.3);
@@ -81,7 +72,6 @@ body {
     color: var(--safe-emerald);
 }
 
-/* Hiệu ứng nhấp nháy cho đèn tín hiệu */
 @keyframes pulse-dot {
     0%, 100% {
         opacity: 1;

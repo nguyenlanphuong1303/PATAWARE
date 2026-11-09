@@ -101,11 +101,21 @@ class DeepUrlAnalyzer:
     @classmethod
     def check_typosquatting(cls, domain_info: Dict[str, str]) -> Dict[str, Any]:
         """
-        Sử dụng thuật toán khoảng cách chuỗi Levenshtein Distance và luật ngữ nghĩa để phát hiện cố ý nhái tên thương hiệu.
-        Ví dụ: 'vietc0mbank', 'sh0pee-vn', 'mbbank-online'.
+        Sử dụng thuật toán khoảng cách chuỗi Levenshtein Distance, phân tách token và chuẩn hóa Leetspeak
+        để phát hiện hành vi cố ý nhái tên thương hiệu.
+        Ví dụ: 'vietc0mbank', 'vietc0mbank-portal', 'sh0pee-vn', 'mbbank-online'.
         """
         domain_name = domain_info.get("domain_name", "").lower()
         full_host = domain_info.get("full_host", "").lower()
+
+        # Chuẩn hóa Leetspeak (thay số 0 -> o, 1 -> l/i, 3 -> e, 5 -> s, @ -> a)
+        leetspeak_map = str.maketrans("0135@", "olsea")
+        norm_domain = domain_name.translate(leetspeak_map)
+        norm_host = full_host.translate(leetspeak_map)
+
+        # Phân rã thành các từ/token đơn (ví dụ vietc0mbank-portal -> ['vietc0mbank', 'portal'])
+        tokens = re.split(r'[-_.]', domain_name)
+        norm_tokens = [t.translate(leetspeak_map) for t in tokens if t]
 
         detected = False
         target_brand = None
@@ -120,32 +130,45 @@ class DeepUrlAnalyzer:
             if domain_info.get("registered_domain", "").lower() == official_domain:
                 continue
 
-            # Kiểm tra xem tên miền có chứa từ khóa thương hiệu kèm các hậu tố bẫy hay không
-            # Ví dụ: 'vietcombank-otp.com', 'mbbank-xacthuc.xyz'
-            phishing_tokens = ["login", "dangnhap", "otp", "xacthuc", "online", "bank", "vn", "support", "cskh", "nhanthuong"]
-            if keyword in domain_name or keyword in full_host:
+            # 1. Kiểm tra xuất hiện trực tiếp hoặc qua Leetspeak (ví dụ vietc0mbank -> vietcombank)
+            has_raw = keyword in domain_name or keyword in full_host
+            has_leetspeak = keyword in norm_domain or keyword in norm_host
+
+            if has_leetspeak:
                 detected = True
                 target_brand = brand["name"]
-                reasons.append(
-                    f"Tên miền chứa từ khóa thương hiệu '{brand['name']}' nhưng không phải tên miền chính thức ({official_domain})."
-                )
-                best_similarity = 0.95
+                best_similarity = 0.98 if not has_raw else 0.95
+                if not has_raw:
+                    reasons.append(
+                        f"Phát hiện thủ đoạn ngụy trang ký tự Leetspeak (thay chữ bằng số, ví dụ '0' thay 'o') để giả mạo thương hiệu '{brand['name']}'."
+                    )
+                else:
+                    reasons.append(
+                        f"Tên miền chứa từ khóa thương hiệu '{brand['name']}' nhưng không phải tên miền chính thức ({official_domain})."
+                    )
                 break
 
-            # Tính toán khoảng cách Levenshtein nếu độ dài xấp xỉ
-            if Levenshtein and abs(len(domain_name) - len(keyword)) <= 3:
-                dist = Levenshtein.distance(domain_name, keyword)
-                ratio = Levenshtein.ratio(domain_name, keyword)
+            # 2. Kiểm tra khoảng cách Levenshtein trên toàn bộ domain_name và trên từng token
+            candidates = [domain_name] + tokens + norm_tokens
+            found_lev = False
+            for cand in candidates:
+                if not cand or cand == keyword:
+                    continue
+                if Levenshtein and abs(len(cand) - len(keyword)) <= 3:
+                    dist = Levenshtein.distance(cand, keyword)
+                    ratio = Levenshtein.ratio(cand, keyword)
 
-                # Khoảng cách 1 hoặc 2 ký tự với tỷ lệ tương đồng cao là dấu hiệu cố tình gõ nhái
-                if 1 <= dist <= 2 and ratio >= 0.75:
-                    detected = True
-                    target_brand = brand["name"]
-                    best_similarity = ratio
-                    reasons.append(
-                        f"Phát hiện thủ đoạn mạo danh (Typosquatting) gần giống thương hiệu '{brand['name']}' (Khoảng cách ký tự: {dist}, tỷ lệ tương đồng: {ratio:.1%})."
-                    )
-                    break
+                    if 1 <= dist <= 2 and ratio >= 0.72:
+                        detected = True
+                        target_brand = brand["name"]
+                        best_similarity = ratio
+                        reasons.append(
+                            f"Phát hiện thủ đoạn mạo danh (Typosquatting) trong cụm '{cand}' gần giống thương hiệu '{brand['name']}' (Khoảng cách ký tự: {dist}, tỷ lệ tương đồng: {ratio:.1%})."
+                        )
+                        found_lev = True
+                        break
+            if found_lev:
+                break
 
         return {
             "typosquatting_detected": detected,

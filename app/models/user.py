@@ -19,5 +19,5 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Quan hệ với các bài viết chia sẻ và kết quả trắc nghiệm
-    stories = relationship("CommunityStory", back_populates="author", cascade="all, delete-orphan")
+    stories = relationship("CommunityStory", foreign_keys="[CommunityStory.user_id]", back_populates="author", cascade="all, delete-orphan")
     quiz_results = relationship("UserQuizResult", back_populates="user", cascade="all, delete-orphan")

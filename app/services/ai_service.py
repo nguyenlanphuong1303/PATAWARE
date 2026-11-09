@@ -18,10 +18,14 @@ class AiAnalysisService:
     """
 
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY
+        from dotenv import dotenv_values
+        self.api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or dotenv_values(".env").get("GEMINI_API_KEY")
         if genai and self.api_key:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
+            try:
+                self.model = genai.GenerativeModel("models/gemini-3.8-flash")
+            except Exception:
+                self.model = genai.GenerativeModel("gemini-3.8-flash")
         else:
             self.model = None
 

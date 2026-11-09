@@ -1,6 +1,5 @@
 import os
 from typing import List, Union
-from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -13,7 +12,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
 
     # Cấu hình bảo mật và JWT
-    SECRET_KEY: str = Field(min_length=32)
+    SECRET_KEY: str = "pataware-super-secret-key-change-in-production-2025"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # Thời hạn token: 24 giờ
 

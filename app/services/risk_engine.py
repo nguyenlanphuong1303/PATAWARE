@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.models.blacklist import Blacklist
 from app.services.url_analyzer import DeepUrlAnalyzer
 from app.services.ai_service import AiAnalysisService
+from app.services.threat_intel import ThreatIntelService
+from app.services.content_filter import ParentalControlFilter
 from app.schemas.scan import ScanResponse, RiskBreakdown, DomainAnalysisDetail
 
 
@@ -12,7 +14,7 @@ class HybridRiskEngine:
     """
     Bộ Chấm Điểm Rủi Ro Đa Tầng (Hybrid Risk Engine - Mục 3.1):
     Tổng hợp kết quả đánh giá từ 4 tầng:
-    1. Danh sách đen (Blacklist Database)
+    1. Danh sách đen (Blacklist Database & Cloud Threat Intelligence từ ChongLuaDao / CyRadar)
     2. Phân tích kỹ thuật tầng mạng (WHOIS Age, Typosquatting Levenshtein, Punycode Homoglyph)
     3. Trí tuệ nhân tạo (LLM AI) bóc tách hành vi thao túng tâm lý
     4. Bộ lọc quy tắc cứng (Heuristic / Regex)
@@ -21,14 +23,51 @@ class HybridRiskEngine:
     def __init__(self, db: Session):
         self.db = db
         self.ai_service = AiAnalysisService()
+        self.threat_intel = ThreatIntelService()
 
     def check_blacklist(self, value: str, input_type: str) -> Optional[Blacklist]:
         """Truy vấn cơ sở dữ liệu danh sách đen để tìm sự trùng khớp."""
         cleaned_val = value.strip().lower()
-        query = self.db.query(Blacklist).filter(Blacklist.value == cleaned_val)
-        if input_type in ("phone", "bank_account", "domain", "url"):
-            query = query.filter(Blacklist.type == input_type)
-        return query.first()
+
+        # 1. Khớp chính xác giá trị nguyên bản
+        matched = self.db.query(Blacklist).filter(Blacklist.value == cleaned_val).first()
+        if matched:
+            return matched
+
+        # 2. Nếu là URL hoặc tên miền, bóc tách hostname / tên miền đã đăng ký
+        if input_type in ("url", "domain") or "://" in cleaned_val or "." in cleaned_val:
+            from urllib.parse import urlparse
+            import tldextract
+            target = cleaned_val if "://" in cleaned_val else f"https://{cleaned_val}"
+            try:
+                parsed = urlparse(target)
+                netloc = (parsed.netloc or "").split(":")[0].strip().lower()
+                extracted = tldextract.extract(target)
+                reg_domain = (extracted.registered_domain or "").strip().lower()
+
+                candidates = [c for c in [netloc, reg_domain] if c]
+                if candidates:
+                    matched = self.db.query(Blacklist).filter(
+                        Blacklist.type.in_(["domain", "url"]),
+                        Blacklist.value.in_(candidates)
+                    ).first()
+                    if matched:
+                        return matched
+            except Exception:
+                pass
+
+        # 3. Nếu là Số điện thoại hoặc STK, làm sạch khoảng trắng / ký tự phân cách
+        if input_type in ("phone", "bank_account"):
+            digits_only = re.sub(r'\D', '', cleaned_val)
+            if digits_only and digits_only != cleaned_val:
+                matched = self.db.query(Blacklist).filter(
+                    Blacklist.type == input_type,
+                    Blacklist.value == digits_only
+                ).first()
+                if matched:
+                    return matched
+
+        return None
 
     def evaluate(self, content: str, input_type: str) -> ScanResponse:
         """Thực hiện quy trình chấm điểm và đánh giá rủi ro đa tầng."""
@@ -42,7 +81,7 @@ class HybridRiskEngine:
         heuristic_score = 0.0
         domain_detail = None
 
-        # TẦNG 1: Đối soát Danh sách đen (Blacklist Check)
+        # TẦNG 1: Đối soát Danh sách đen (Blacklist Check) & Threat Intelligence
         matched_bl = self.check_blacklist(cleaned_content, input_type)
         if matched_bl:
             blacklist_score = 100.0
@@ -50,6 +89,35 @@ class HybridRiskEngine:
                 f"Đã nằm trong DANH SÁCH ĐEN cảnh báo ({matched_bl.type}): {matched_bl.reason or 'Bị tố cáo lừa đảo nhiều lần'} (Lượt báo cáo: {matched_bl.report_count})"
             )
             recommendations.append("TUYỆT ĐỐI KHÔNG thực hiện giao dịch, chuyển tiền hoặc nhấn vào liên kết này.")
+        elif input_type in ("url", "domain") or (input_type == "text" and re.search(r'https?://[^\s]+', cleaned_content)):
+            # Tra cứu thời gian thực đám mây từ Threat Intelligence (Chống Lừa Đảo / CyRadar)
+            url_to_check = cleaned_content
+            url_match = re.search(r'https?://[^\s]+', cleaned_content)
+            if url_match:
+                url_to_check = url_match.group(0)
+
+            intel = self.threat_intel.check_url_intel(url_to_check)
+            if intel.get("is_malicious"):
+                blacklist_score = float(intel.get("score_penalty", 95.0))
+                indicators.append(
+                    f"CẢNH BÁO TÌNH BÁO MẠNG ({intel.get('source')}): {intel.get('detail')}"
+                )
+                recommendations.append("TUYỆT ĐỐI KHÔNG truy cập, không cung cấp tài khoản hay thực hiện chuyển tiền theo trang web này.")
+
+                # Tự động cache vào Database nội bộ của PATAWARE
+                try:
+                    cached_domain = intel.get("domain") or url_to_check
+                    new_bl = Blacklist(
+                        type="url" if input_type == "url" else "domain",
+                        value=cached_domain[:255],
+                        reason=f"[{intel.get('source')}] {intel.get('detail')}",
+                        report_count=10,
+                        severity="critical"
+                    )
+                    self.db.add(new_bl)
+                    self.db.commit()
+                except Exception:
+                    self.db.rollback()
 
         # TẦNG 2: Phân tích Kỹ thuật Tầng mạng (Deep Domain & Network Analyzer)
         if input_type == "url" or (input_type == "text" and re.search(r'https?://[^\s]+', cleaned_content)):
@@ -84,13 +152,27 @@ class HybridRiskEngine:
         for tactic in ai_res.get("tactics_detected", []):
             indicators.append(f"Dấu hiệu thao túng tâm lý: {tactic}")
 
-        # TẦNG 4: Tính toán Điểm Rủi Ro Tổng Hợp theo Trọng số (Thang điểm 0 - 100)
+        # TẦNG 4: Bộ Lọc Diện Rộng & Bảo Vệ Trẻ Em (Parental Control: Cờ Bạc & Nội Dung Người Lớn 18+)
+        parental_res = ParentalControlFilter.check_content_or_url(cleaned_content)
+        if parental_res.get("is_flagged"):
+            heuristic_score = float(parental_res.get("risk_score", 95.0))
+            indicators.append(f"[{parental_res.get('badge')}] {parental_res.get('reason')}")
+            recommendations.append(parental_res.get("recommendation"))
+
+        # TẦNG 5: Tính toán Điểm Rủi Ro Tổng Hợp theo Trọng số (Thang điểm 0 - 100)
         if blacklist_score >= 100:
             final_score = 100.0
+        elif parental_res.get("is_flagged"):
+            final_score = heuristic_score
         else:
             if input_type == "url":
-                # Đối với URL: 50% Kỹ thuật tầng mạng + 40% AI Phân tích + 10% Heuristic
-                final_score = (tech_score * 0.50) + (ai_score * 0.40) + (heuristic_score * 0.10)
+                # Đối với URL: nếu phát hiện mạo danh Typosquatting thì trực tiếp là NGUY HIỂM CAO
+                if domain_detail and domain_detail.typosquatting_detected:
+                    final_score = max(88.0, float(tech_score))
+                elif domain_detail and domain_detail.is_new_domain:
+                    final_score = max(72.0, float(tech_score))
+                else:
+                    final_score = (tech_score * 0.50) + (ai_score * 0.40) + (heuristic_score * 0.10)
             elif input_type in ("phone", "bank_account"):
                 # Đối với STK / Số điện thoại: Ưu tiên Blacklist và nhận diện dạng số
                 final_score = max(blacklist_score, ai_score * 0.7)
