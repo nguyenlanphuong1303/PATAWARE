@@ -161,30 +161,30 @@ window.renderScanResult = function(data) {
     resultArea.classList.remove('hidden');
 
     const score = data.risk_score || 0;
-    let badgeBg = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
-    let scoreColor = "text-emerald-400";
+    let badgeBg = "bg-emerald-50 border-emerald-200 text-emerald-800";
+    let scoreColor = "text-emerald-600";
     if (score >= 70) {
-        badgeBg = "bg-rose-500/10 border-rose-500/30 text-rose-400";
-        scoreColor = "text-rose-500";
+        badgeBg = "bg-rose-50 border-rose-200 text-rose-800";
+        scoreColor = "text-rose-600";
     } else if (score >= 40) {
-        badgeBg = "bg-amber-500/10 border-amber-500/30 text-amber-400";
-        scoreColor = "text-amber-400";
+        badgeBg = "bg-amber-50 border-amber-200 text-amber-800";
+        scoreColor = "text-amber-600";
     }
 
     let domainHtml = "";
     if (data.domain_analysis) {
         const da = data.domain_analysis;
         domainHtml = `
-            <div class="mt-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs space-y-2">
-                <div class="font-bold text-slate-300 flex items-center space-x-2">
-                    <i class="fa-solid fa-network-wired text-cyan-400"></i>
+            <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <div class="font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-network-wired text-cyan-600"></i>
                     <span>Phân Tích Kỹ Thuật Tầng Mạng (Deep Domain Analyzer)</span>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-400">
-                    <div>Tên miền: <strong class="text-slate-200">${da.domain || 'N/A'}</strong></div>
-                    <div>Tuổi tên miền: <strong class="${da.is_new_domain ? 'text-rose-400' : 'text-slate-200'}">${da.age_days !== null ? da.age_days + ' ngày' : 'Chưa có dữ liệu'}</strong></div>
-                    <div>Punycode / Homoglyph: <strong class="${da.is_punycode_homoglyph ? 'text-rose-400' : 'text-emerald-400'}">${da.is_punycode_homoglyph ? 'PHÁT HIỆN' : 'An toàn'}</strong></div>
-                    <div>Typosquatting: <strong class="${da.typosquatting_detected ? 'text-rose-400' : 'text-emerald-400'}">${da.typosquatting_detected ? 'Mạo danh ' + da.impersonated_brand : 'Không'}</strong></div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-600">
+                    <div>Tên miền: <strong class="text-slate-900">${da.domain || 'N/A'}</strong></div>
+                    <div>Tuổi tên miền: <strong class="${da.is_new_domain ? 'text-rose-600 font-bold' : 'text-slate-900'}">${da.age_days !== null ? da.age_days + ' ngày' : 'Chưa có dữ liệu'}</strong></div>
+                    <div>Punycode / Homoglyph: <strong class="${da.is_punycode_homoglyph ? 'text-rose-600 font-bold' : 'text-emerald-600'}">${da.is_punycode_homoglyph ? 'PHÁT HIỆN' : 'An toàn'}</strong></div>
+                    <div>Typosquatting: <strong class="${da.typosquatting_detected ? 'text-rose-600 font-bold' : 'text-emerald-600'}">${da.typosquatting_detected ? 'Mạo danh ' + da.impersonated_brand : 'Không'}</strong></div>
                 </div>
             </div>
         `;
@@ -193,10 +193,10 @@ window.renderScanResult = function(data) {
     let indicatorsHtml = "";
     if (data.scam_indicators && data.scam_indicators.length > 0) {
         indicatorsHtml = `
-            <div class="mt-4">
-                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dấu hiệu rủi ro phát hiện:</h4>
-                <ul class="space-y-1 text-xs text-rose-300">
-                    ${data.scam_indicators.map(ind => `<li class="flex items-start space-x-2"><i class="fa-solid fa-triangle-exclamation text-rose-400 mt-0.5"></i><span>${ind}</span></li>`).join('')}
+            <div class="mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-rose-800 mb-2">Dấu hiệu rủi ro phát hiện:</h4>
+                <ul class="space-y-1.5 text-xs text-rose-700">
+                    ${data.scam_indicators.map(ind => `<li class="flex items-start space-x-2"><i class="fa-solid fa-triangle-exclamation text-rose-600 mt-0.5"></i><span>${ind}</span></li>`).join('')}
                 </ul>
             </div>
         `;
@@ -205,24 +205,24 @@ window.renderScanResult = function(data) {
     let recsHtml = "";
     if (data.recommendations && data.recommendations.length > 0) {
         recsHtml = `
-            <div class="mt-4 p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40">
-                <h4 class="text-xs font-bold uppercase tracking-wider text-cyan-400 mb-1">Khuyến cáo hành động an toàn:</h4>
-                <ul class="space-y-1 text-xs text-slate-300">
-                    ${data.recommendations.map(r => `<li class="flex items-start space-x-2"><i class="fa-solid fa-circle-check text-cyan-400 mt-0.5"></i><span>${r}</span></li>`).join('')}
+            <div class="mt-4 p-4 rounded-xl bg-sky-50 border border-sky-200">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-sky-800 mb-1.5">Khuyến cáo hành động an toàn:</h4>
+                <ul class="space-y-1.5 text-xs text-slate-700">
+                    ${data.recommendations.map(r => `<li class="flex items-start space-x-2"><i class="fa-solid fa-circle-check text-sky-600 mt-0.5"></i><span>${r}</span></li>`).join('')}
                 </ul>
             </div>
         `;
     }
 
     resultArea.innerHTML = `
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-xl border ${badgeBg}">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-xl border ${badgeBg} shadow-sm">
             <div>
-                <div class="text-xs uppercase tracking-wider font-bold">Mức Độ Đánh Giá: ${data.risk_level}</div>
-                <div class="text-sm font-semibold text-slate-100 mt-0.5">${data.verdict_summary}</div>
+                <div class="text-xs uppercase tracking-wider font-extrabold">Mức Độ Đánh Giá: ${data.risk_level}</div>
+                <div class="text-base font-bold text-slate-900 mt-1">${data.verdict_summary}</div>
             </div>
             <div class="text-right">
-                <span class="text-3xl font-extrabold ${scoreColor}">${data.risk_score}</span>
-                <span class="text-xs text-slate-400">/100 Rủi Ro</span>
+                <span class="text-4xl font-black ${scoreColor}">${data.risk_score}</span>
+                <span class="text-xs text-slate-500 font-semibold block">/100 Rủi Ro</span>
             </div>
         </div>
         ${domainHtml}
@@ -288,6 +288,12 @@ window.performScan = async function() {
     }
 
     window.renderScanResult(data);
+
+    // Lưu lịch sử tìm kiếm / kiểm tra vào localStorage và cập nhật giao diện
+    if (typeof window.saveSearchHistory === 'function') {
+        const queryToSave = window.selectedImageFile ? (window.selectedImageFile.name || "Ảnh OCR") : content;
+        window.saveSearchHistory(queryToSave, scanType, data.risk_score, data.risk_level);
+    }
 
     // Cập nhật số liệu thống kê thời gian thực ngay lập tức
     if (typeof window.loadDashboardStats === 'function') {
@@ -361,7 +367,7 @@ window.loadDashboardStats = async function() {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } }
+                        plugins: { legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11, weight: '600' } } } }
                     }
                 });
             }
@@ -374,18 +380,18 @@ window.loadDashboardStats = async function() {
                     data: {
                         labels: stats.recent_trend_days.map(t => t.date),
                         datasets: [
-                            { label: 'Lượt quét', data: stats.recent_trend_days.map(t => t.scans), borderColor: '#06b6d4', tension: 0.3, fill: false },
-                            { label: 'Nguy cơ cao', data: stats.recent_trend_days.map(t => t.threats), borderColor: '#f43f5e', tension: 0.3, fill: false }
+                            { label: 'Lượt quét', data: stats.recent_trend_days.map(t => t.scans), borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.1)', tension: 0.3, fill: false },
+                            { label: 'Nguy cơ cao', data: stats.recent_trend_days.map(t => t.threats), borderColor: '#e11d48', backgroundColor: 'rgba(225, 29, 72, 0.1)', tension: 0.3, fill: false }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
-                            y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+                            x: { ticks: { color: '#64748b', font: { weight: '600' } }, grid: { color: '#f1f5f9' } },
+                            y: { ticks: { color: '#64748b', font: { weight: '600' } }, grid: { color: '#f1f5f9' } }
                         },
-                        plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }
+                        plugins: { legend: { labels: { color: '#475569', font: { size: 11, weight: '600' } } } }
                     }
                 });
             }
@@ -397,12 +403,12 @@ window.loadDashboardStats = async function() {
     const topList = document.getElementById('topScammersList');
     if (topList) {
         topList.innerHTML = stats.top_reported_scammers.map(s => `
-            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-xs">
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/90 text-xs hover:border-slate-300 transition-colors">
                 <div class="truncate max-w-[200px]">
-                    <span class="font-bold text-slate-200 block truncate">${s.value}</span>
-                    <span class="text-[10px] text-slate-500 uppercase">${s.type}</span>
+                    <span class="font-bold text-slate-800 block truncate">${s.value}</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-semibold">${s.type}</span>
                 </div>
-                <span class="text-rose-400 font-mono font-bold">${s.report_count} tố cáo</span>
+                <span class="text-rose-700 bg-rose-50 border border-rose-200 font-mono font-extrabold px-2 py-0.5 rounded">${s.report_count} tố cáo</span>
             </div>
         `).join('');
     }
@@ -562,6 +568,116 @@ window.submitQuizAnswers = function() {
     alert(`Kết quả: Bạn đạt ${correctCount}/${window.cachedQuizQuestions.length} câu (${pct}%). Hãy đọc phần giải thích chi tiết phía dưới.`);
 };
 
+// ==========================================
+// QUẢN LÝ LỊCH SỬ TÌM KIẾM / QUÉT RỦI RO
+// ==========================================
+const SEARCH_HISTORY_KEY = 'pataware_search_history';
+
+window.saveSearchHistory = function(query, type, risk_score, risk_level) {
+    if (!query || typeof query !== 'string') return;
+    try {
+        let history = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+        // Loại bỏ mục trùng lặp nếu đã từng quét trước đó để đưa lên đầu
+        history = history.filter(item => (item.query || '').trim().toLowerCase() !== query.trim().toLowerCase());
+        
+        history.unshift({
+            id: Date.now(),
+            query: query.trim(),
+            type: type || 'text',
+            risk_score: typeof risk_score === 'number' ? risk_score : 0,
+            risk_level: risk_level || 'SAFE',
+            date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        });
+
+        // Giữ lại tối đa 8 mục tìm kiếm gần nhất
+        if (history.length > 8) history = history.slice(0, 8);
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+        window.renderSearchHistory();
+    } catch (e) {
+        console.error("Lỗi khi lưu lịch sử tìm kiếm:", e);
+    }
+};
+
+window.renderSearchHistory = function() {
+    const container = document.getElementById('searchHistoryContainer');
+    const listEl = document.getElementById('searchHistoryList');
+    if (!container || !listEl) return;
+
+    try {
+        const history = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+        if (!Array.isArray(history) || history.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        listEl.innerHTML = history.map(item => {
+            let badgeBg = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+            let badgeText = 'An toàn';
+            if (item.risk_level === 'DANGEROUS' || item.risk_score >= 70) {
+                badgeBg = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+                badgeText = 'Nguy hiểm';
+            } else if (item.risk_level === 'SUSPICIOUS' || item.risk_score >= 40) {
+                badgeBg = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+                badgeText = 'Cảnh báo';
+            }
+
+            let typeIcon = 'fa-globe';
+            if (item.type === 'phone') typeIcon = 'fa-phone';
+            else if (item.type === 'bank_account') typeIcon = 'fa-building-columns';
+            else if (item.type === 'image') typeIcon = 'fa-image';
+            else if (item.type === 'text') typeIcon = 'fa-comment-dots';
+
+            const displayQuery = item.query.length > 28 ? item.query.slice(0, 28) + '...' : item.query;
+            const safeQueryAttr = encodeURIComponent(item.query);
+
+            return `
+                <div class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700/80 hover:border-cyan-400 hover:bg-slate-800 transition-all text-xs shadow-sm">
+                    <button type="button" onclick="window.reRunSearch('${safeQueryAttr}', '${item.type}')" 
+                            class="flex items-center gap-1.5 text-slate-100 hover:text-cyan-300 text-left cursor-pointer" 
+                            title="Quét lại: ${item.query}">
+                        <i class="fa-solid ${typeIcon} text-[11px] text-cyan-400"></i>
+                        <span class="font-mono text-[12px] font-semibold">${displayQuery}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeBg}">${badgeText}</span>
+                    </button>
+                    <button type="button" onclick="window.removeSearchItem(${item.id})" class="text-slate-400 hover:text-rose-400 ml-1 p-0.5 transition-colors cursor-pointer" title="Xóa mục này">
+                        <i class="fa-solid fa-xmark text-[12px]"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error("Lỗi hiển thị lịch sử tìm kiếm:", e);
+    }
+};
+
+window.reRunSearch = function(encodedQuery, type) {
+    const query = decodeURIComponent(encodedQuery);
+    const inputField = document.getElementById('scanInput');
+    if (inputField) {
+        inputField.value = query;
+        inputField.focus();
+    }
+    if (typeof window.clearSelectedImage === 'function') {
+        window.clearSelectedImage();
+    }
+    window.performScan();
+};
+
+window.removeSearchItem = function(id) {
+    try {
+        let history = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+        history = history.filter(item => item.id !== id);
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+        window.renderSearchHistory();
+    } catch (e) {}
+};
+
+window.clearSearchHistory = function() {
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
+    window.renderSearchHistory();
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('btnScan');
     if (btn) {
@@ -610,6 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.loadDashboardStats();
     window.loadStories();
     window.loadQuiz();
+    window.renderSearchHistory();
 
     // Tự động đồng bộ số liệu thời gian thực định kỳ mỗi 10 giây
     setInterval(function() {

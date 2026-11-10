@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-    --primary-cyan: #06b6d4;
-    --primary-blue: #3b82f6;
-    --bg-dark: #020617;
-    --card-dark: rgba(15, 23, 42, 0.9);
-    --border-color: #1e293b;
-    --danger-rose: #f43f5e;
-    --warning-amber: #f59e0b;
-    --safe-emerald: #10b981;
+    --primary-cyan: #0284c7;
+    --primary-blue: #2563eb;
+    --bg-light: #f8fafc;
+    --card-light: #ffffff;
+    --border-color: #e2e8f0;
+    --danger-rose: #e11d48;
+    --warning-amber: #d97706;
+    --safe-emerald: #059669;
 }
 
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: var(--bg-dark);
-    color: #f8fafc;
+    background-color: var(--bg-light);
+    color: #0f172a;
     overflow-x: hidden;
 }
 
@@ -24,24 +24,24 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #090d16;
+    background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #94a3b8;
 }
 
 .glow-cyan {
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+    box-shadow: 0 0 25px rgba(2, 132, 199, 0.2);
 }
 
 .glow-rose {
-    box-shadow: 0 0 20px rgba(244, 63, 94, 0.25);
+    box-shadow: 0 0 25px rgba(225, 29, 72, 0.2);
 }
 
 .card-hover {
@@ -50,25 +50,25 @@ body {
 
 .card-hover:hover {
     transform: translateY(-2px);
-    border-color: rgba(6, 182, 212, 0.4);
-    box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.1);
+    border-color: #38bdf8;
+    box-shadow: 0 12px 30px -5px rgba(2, 132, 199, 0.12);
 }
 
 .badge-danger {
-    background-color: rgba(244, 63, 94, 0.1);
-    border: 1px solid rgba(244, 63, 94, 0.3);
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
     color: var(--danger-rose);
 }
 
 .badge-warning {
-    background-color: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
     color: var(--warning-amber);
 }
 
 .badge-safe {
-    background-color: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
     color: var(--safe-emerald);
 }
 
@@ -86,3 +86,4 @@ body {
 .dot-indicator {
     animation: pulse-dot 2s infinite ease-in-out;
 }
+

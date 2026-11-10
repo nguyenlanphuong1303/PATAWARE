@@ -93,3 +93,24 @@ async def inspect_image_ocr(
     db.commit()
 
     return result
+
+
+@router.get("/history")
+def get_scan_history(limit: int = 10, db: Session = Depends(get_db)):
+    """
+    Điểm cuối lấy danh sách nhật ký các lượt kiểm tra quét rủi ro gần nhất từ cơ sở dữ liệu.
+    """
+    logs = db.query(ScanLog).order_by(ScanLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": log.id,
+            "input_type": log.input_type,
+            "raw_input": log.raw_input,
+            "risk_score": log.risk_score,
+            "risk_level": log.risk_level,
+            "ai_verdict": log.ai_verdict,
+            "created_at": log.created_at.strftime("%H:%M %d/%m/%Y") if log.created_at else None
+        }
+        for log in logs
+    ]
+
