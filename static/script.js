@@ -1,12 +1,33 @@
 window.currentScanType = 'url';
-window.selectedImageFile = null;
+window.selectedImageFiles = []; // Danh sách các ảnh đã chọn [{ id, file, url, name, size, sizeStr }]
+window.currentLightboxIndex = 0;
+window.scannedImagesList = []; // Danh sách ảnh đã quét để hiển thị trong kết quả
+window.currentPreviewUrl = null;
+
+// Hỗ trợ tương thích ngược cho window.selectedImageFile
+Object.defineProperty(window, 'selectedImageFile', {
+    get: function() {
+        return (window.selectedImageFiles && window.selectedImageFiles.length > 0)
+            ? window.selectedImageFiles[0].file
+            : null;
+    },
+    set: function(val) {
+        if (!val) {
+            window.selectedImageFiles = [];
+        } else if (Array.isArray(val)) {
+            window.selectedImageFiles = val;
+        }
+    },
+    configurable: true
+});
+
 window.categoryChartInstance = null;
 window.trendChartInstance = null;
 window.cachedQuizQuestions = [];
 
 // Tự động nhận diện loại dữ liệu nhập vào (All-in-one Smart Detector)
 window.detectScanType = function(val) {
-    if (window.selectedImageFile) return 'image';
+    if (window.selectedImageFiles && window.selectedImageFiles.length > 0) return 'image';
     const text = (val || '').trim();
     if (!text) return 'url';
 
@@ -32,26 +53,240 @@ window.detectScanType = function(val) {
     return 'text';
 };
 
-window.previewSelectedImage = function(event) {
-    const file = event.target.files && event.target.files[0];
-    if (file) {
-        window.selectedImageFile = file;
-        const nameEl = document.getElementById('imageFileName');
-        const labelEl = document.getElementById('imageFileLabel');
-        if (labelEl) {
-            labelEl.textContent = 'Đã chọn tệp: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-        }
-        if (nameEl) nameEl.classList.remove('hidden');
+// Hàm thêm nhiều hình ảnh vào danh sách đính kèm
+window.addSelectedImages = function(files, customLabelPrefix) {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+
+    fileList.forEach(file => {
+        const isImg = (file.type && file.type.startsWith('image/')) || 
+                      (file.name && file.name.match(/\.(png|jpe?g|webp|gif|bmp)$/i));
+        if (!isImg) return;
+
+        // Bỏ qua nếu trùng file hoàn toàn
+        const isDuplicate = window.selectedImageFiles.some(existing => 
+            existing.name === file.name && existing.size === file.size
+        );
+        if (isDuplicate) return;
+
+        const sizeStr = file.size > 1024 * 1024 
+            ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' 
+            : (file.size / 1024).toFixed(1) + ' KB';
+
+        const displayName = file.name || (customLabelPrefix ? `${customLabelPrefix} (${sizeStr})` : `Ảnh đính kèm (${sizeStr})`);
+
+        const item = {
+            id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 7),
+            file: file,
+            url: URL.createObjectURL(file),
+            name: displayName,
+            size: file.size,
+            sizeStr: sizeStr
+        };
+
+        window.selectedImageFiles.push(item);
+    });
+
+    if (window.selectedImageFiles.length > 0) {
+        window.currentPreviewUrl = window.selectedImageFiles[0].url;
     }
+
+    window.renderImagePreviewGrid();
+};
+
+// Hàm cập nhật xem trước (Tương thích hàm cũ)
+window.updateImagePreview = function(file, customLabel) {
+    if (!file) return;
+    window.addSelectedImages([file], customLabel);
+};
+
+// Sự kiện khi người dùng chọn file từ hộp thoại
+window.previewSelectedImage = function(event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        window.addSelectedImages(files);
+    }
+    event.target.value = ''; // Reset để chọn tiếp được các ảnh khác
+};
+
+// Render danh sách thumbnail trực quan cho nhiều hình ảnh
+window.renderImagePreviewGrid = function() {
+    const container = document.getElementById('imageFileName');
+    const countText = document.getElementById('imageCountText');
+    const grid = document.getElementById('imagePreviewGrid');
+
+    if (!container || !grid) return;
+
+    if (!window.selectedImageFiles || window.selectedImageFiles.length === 0) {
+        container.classList.add('hidden');
+        grid.innerHTML = '';
+        window.currentPreviewUrl = null;
+        return;
+    }
+
+    container.classList.remove('hidden');
+    const count = window.selectedImageFiles.length;
+    if (countText) {
+        countText.textContent = `${count} ảnh sẵn sàng quét OCR`;
+    }
+
+    grid.innerHTML = window.selectedImageFiles.map((item, index) => `
+        <div class="relative group rounded-xl overflow-hidden border border-cyan-200/90 bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+            <div class="relative aspect-video w-full overflow-hidden bg-slate-100 cursor-pointer" onclick="window.openImageModal(${index})">
+                <img src="${item.url}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <div class="absolute inset-0 bg-slate-900/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
+                    <i class="fa-solid fa-magnifying-glass-plus text-sm drop-shadow"></i>
+                    <span>Xem to</span>
+                </div>
+                <span class="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-bold text-white tracking-wider">#${index + 1}</span>
+            </div>
+            <button type="button" onclick="window.removeSelectedImage('${item.id}'); event.stopPropagation();" 
+                    class="absolute top-1 right-1 w-6 h-6 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] transition-colors shadow-sm cursor-pointer z-10" title="Xóa ảnh này">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-1.5 bg-white border-t border-slate-100">
+                <p class="text-[11px] font-semibold text-slate-800 truncate" title="${item.name}">${item.name}</p>
+                <p class="text-[10px] text-slate-400 font-medium">${item.sizeStr}</p>
+            </div>
+        </div>
+    `).join('');
+};
+
+// Xóa một ảnh cụ thể
+window.removeSelectedImage = function(id) {
+    const idx = window.selectedImageFiles.findIndex(item => item.id === id);
+    if (idx !== -1) {
+        if (window.selectedImageFiles[idx].url) {
+            URL.revokeObjectURL(window.selectedImageFiles[idx].url);
+        }
+        window.selectedImageFiles.splice(idx, 1);
+    }
+    if (window.selectedImageFiles.length > 0) {
+        window.currentPreviewUrl = window.selectedImageFiles[0].url;
+    } else {
+        window.currentPreviewUrl = null;
+    }
+    window.renderImagePreviewGrid();
+};
+
+// Xóa toàn bộ ảnh đã chọn
+window.clearSelectedImages = function() {
+    if (window.selectedImageFiles && window.selectedImageFiles.length > 0) {
+        window.selectedImageFiles.forEach(item => {
+            if (item.url) URL.revokeObjectURL(item.url);
+        });
+    }
+    window.selectedImageFiles = [];
+    window.currentPreviewUrl = null;
+
+    const fileInput = document.getElementById('imageFileInput');
+    if (fileInput) fileInput.value = '';
+
+    const container = document.getElementById('imageFileName');
+    if (container) container.classList.add('hidden');
+
+    const grid = document.getElementById('imagePreviewGrid');
+    if (grid) grid.innerHTML = '';
 };
 
 window.clearSelectedImage = function() {
-    window.selectedImageFile = null;
-    const fileInput = document.getElementById('imageFileInput');
-    if (fileInput) fileInput.value = '';
-    const nameEl = document.getElementById('imageFileName');
-    if (nameEl) nameEl.classList.add('hidden');
+    window.clearSelectedImages();
 };
+
+// Modal mở xem ảnh đầy đủ (Lightbox Modal với điều hướng ảnh trước/sau)
+window.openImageModal = function(index) {
+    const modal = document.getElementById('imageLightboxModal');
+    if (!modal) return;
+
+    if (!window.selectedImageFiles || window.selectedImageFiles.length === 0) {
+        if (window.currentPreviewUrl) {
+            const img = document.getElementById('imageLightboxImg');
+            if (img) img.src = window.currentPreviewUrl;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        return;
+    }
+
+    if (typeof index !== 'number' || index < 0 || index >= window.selectedImageFiles.length) {
+        index = 0;
+    }
+    window.currentLightboxIndex = index;
+    window.updateLightboxView();
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+window.updateLightboxView = function() {
+    const list = (window.selectedImageFiles && window.selectedImageFiles.length > 0)
+        ? window.selectedImageFiles
+        : (window.scannedImagesList && window.scannedImagesList.length > 0 ? window.scannedImagesList : []);
+
+    if (!list || list.length === 0) return;
+
+    const idx = Math.min(Math.max(0, window.currentLightboxIndex), list.length - 1);
+    const item = list[idx];
+    if (!item) return;
+
+    const img = document.getElementById('imageLightboxImg');
+    const title = document.getElementById('lightboxTitle');
+    const counter = document.getElementById('lightboxCounter');
+    const prevBtn = document.getElementById('lightboxPrevBtn');
+    const nextBtn = document.getElementById('lightboxNextBtn');
+
+    if (img) img.src = item.url;
+    if (title) title.textContent = item.name || 'Ảnh đính kèm';
+    if (counter) counter.textContent = `${idx + 1} / ${list.length}`;
+
+    if (list.length > 1) {
+        if (prevBtn) prevBtn.classList.remove('hidden');
+        if (nextBtn) nextBtn.classList.remove('hidden');
+    } else {
+        if (prevBtn) prevBtn.classList.add('hidden');
+        if (nextBtn) nextBtn.classList.add('hidden');
+    }
+};
+
+window.lightboxPrev = function() {
+    const list = (window.selectedImageFiles && window.selectedImageFiles.length > 0)
+        ? window.selectedImageFiles
+        : window.scannedImagesList;
+    if (!list || list.length <= 1) return;
+    window.currentLightboxIndex = (window.currentLightboxIndex - 1 + list.length) % list.length;
+    window.updateLightboxView();
+};
+
+window.lightboxNext = function() {
+    const list = (window.selectedImageFiles && window.selectedImageFiles.length > 0)
+        ? window.selectedImageFiles
+        : window.scannedImagesList;
+    if (!list || list.length <= 1) return;
+    window.currentLightboxIndex = (window.currentLightboxIndex + 1) % list.length;
+    window.updateLightboxView();
+};
+
+window.closeImageModal = function() {
+    const modal = document.getElementById('imageLightboxModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+};
+
+// Đóng modal hoặc chuyển ảnh bằng phím bàn phím
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('imageLightboxModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    if (e.key === 'Escape') {
+        window.closeImageModal();
+    } else if (e.key === 'ArrowLeft') {
+        window.lightboxPrev();
+    } else if (e.key === 'ArrowRight') {
+        window.lightboxNext();
+    }
+});
 
 function runLocalScanSimulation(content, type) {
     const lower = (content || '').toLowerCase();
@@ -117,9 +352,24 @@ function runLocalScanSimulation(content, type) {
             indicators.push("Dấu hiệu bẫy tài chính: Tuyển CTV làm nhiệm vụ giật đơn hoa hồng cao");
         }
     } else if (type === 'image') {
-        score = 86;
-        indicators.push("Bóc tách OCR: Phát hiện tin nhắn yêu cầu nạp tiền hoàn thành nhiệm vụ đơn hàng");
-        indicators.push("Bóc tách OCR: Dấu hiệu hứa hẹn hoàn tiền kèm hoa hồng 20%");
+        const isTrafficOrCamera = /cam[-_\s]?\d+|ch[-_\s]?\d+|hikvision|dahua|1080p|720p|speed|giao\s*thong|phong\s*canh|thien\s*nhien|xe\s*co|hoa\s*don\s*dien|bien\s*lai\s*nuoc/i.test(lower);
+        const hasScamWords = /lừa\s*đảo|chuyen\s*tien|dat\s*coc|tien\s*coc|nhiem\s*vu|hoa\s*hong|ctv|cong\s*tac\s*vien|otp|khoa\s*the|cong\s*an|toa\s*an|lenh\s*bat|bao\s*lo|cam\s*ket/i.test(lower);
+
+        if (isTrafficOrCamera && !hasScamWords) {
+            score = 12;
+            level = "SAFE";
+            indicators.push("Ảnh phong cảnh, giao thông hoặc thông số camera thường ngày; không ghi nhận từ khóa lừa đảo.");
+        } else if (hasScamWords) {
+            score = 88;
+            level = "DANGEROUS";
+            indicators.push("Bóc tách OCR: Phát hiện tin nhắn yêu cầu nạp tiền hoàn thành nhiệm vụ đơn hàng hoặc đe dọa.");
+            indicators.push("Dấu hiệu thao túng tâm lý: Hứa hẹn hoàn tiền kèm hoa hồng cao hoặc mạo danh cơ quan chức năng.");
+        } else {
+            // Ảnh tài liệu thông thường không có từ khóa rủi ro
+            score = 15;
+            level = "SAFE";
+            indicators.push("Hình ảnh tài liệu hoặc phong cảnh thông thường, không phát hiện kịch bản lừa đảo tài chính.");
+        }
     }
 
     if (score >= 70) {
@@ -214,6 +464,28 @@ window.renderScanResult = function(data) {
         `;
     }
 
+    let imageScannedHtml = "";
+    if (window.currentPreviewUrl) {
+        const fileLabelText = document.getElementById('imageFileLabel')?.textContent || 'Ảnh chụp màn hình tải lên';
+        imageScannedHtml = `
+            <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2.5 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-image text-cyan-600"></i> Ảnh chụp màn hình đã phân tích:</span>
+                    <button type="button" onclick="window.openImageModal()" class="text-[11px] text-cyan-600 hover:text-cyan-800 font-semibold cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i> Xem ảnh gốc
+                    </button>
+                </div>
+                <div class="flex items-center gap-3.5">
+                    <img src="${window.currentPreviewUrl}" alt="Ảnh đã quét" onclick="window.openImageModal()" class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-slate-300 shadow-sm hover:scale-105 transition-transform cursor-pointer bg-white flex-shrink-0" title="Nhấp để phóng to ảnh" />
+                    <div class="text-xs text-slate-600 min-w-0">
+                        <p class="font-bold text-slate-900 truncate">${fileLabelText}</p>
+                        <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">Hệ thống đã tự động chạy bộ giải mã OCR bóc tách nội dung và kiểm tra chéo các mẫu lừa đảo tài chính / mạo danh.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     resultArea.innerHTML = `
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-xl border ${badgeBg} shadow-sm">
             <div>
@@ -225,6 +497,7 @@ window.renderScanResult = function(data) {
                 <span class="text-xs text-slate-500 font-semibold block">/100 Rủi Ro</span>
             </div>
         </div>
+        ${imageScannedHtml}
         ${domainHtml}
         ${indicatorsHtml}
         ${recsHtml}
@@ -284,15 +557,42 @@ window.performScan = async function() {
     }
 
     if (!data) {
-        data = runLocalScanSimulation(window.selectedImageFile ? (window.selectedImageFile.name || "screenshot.png") : content, scanType);
+        const queryLabel = hasImages 
+            ? window.selectedImageFiles.map(f => f.name).join(", ") 
+            : content;
+        data = runLocalScanSimulation(queryLabel || "screenshot.png", scanType);
+    }
+
+    // Sao lưu danh sách ảnh vừa quét để phục vụ render và Lightbox
+    if (hasImages) {
+        window.scannedImagesList = window.selectedImageFiles.map(x => ({
+            name: x.name,
+            url: x.url,
+            sizeStr: x.sizeStr
+        }));
     }
 
     window.renderScanResult(data);
 
-    // Lưu lịch sử tìm kiếm / kiểm tra vào localStorage và cập nhật giao diện
+    // Lưu lịch sử tìm kiếm / kiểm tra vào localStorage kèm Thumbnail thực tế
     if (typeof window.saveSearchHistory === 'function') {
-        const queryToSave = window.selectedImageFile ? (window.selectedImageFile.name || "Ảnh OCR") : content;
-        window.saveSearchHistory(queryToSave, scanType, data.risk_score, data.risk_level);
+        let thumbBase64 = null;
+        if (hasImages && window.selectedImageFiles.length > 0 && typeof window.createThumbnailFromBlob === 'function') {
+            try {
+                thumbBase64 = await window.createThumbnailFromBlob(window.selectedImageFiles[0].file);
+            } catch (err) {}
+        }
+
+        const queryToSave = hasImages 
+            ? (window.selectedImageFiles.length > 1 ? `[${window.selectedImageFiles.length} ảnh] ` : '') + (window.selectedImageFiles[0]?.name || "Ảnh chụp màn hình")
+            : content;
+
+        window.saveSearchHistory(queryToSave, scanType, data.risk_score, data.risk_level, {
+            thumbnail: thumbBase64,
+            imageCount: hasImages ? window.selectedImageFiles.length : 0,
+            resultData: data,
+            imagesList: hasImages ? window.selectedImageFiles.map(x => ({ name: x.name, url: thumbBase64 || x.url })) : []
+        });
     }
 
     // Cập nhật số liệu thống kê thời gian thực ngay lập tức
@@ -367,7 +667,7 @@ window.loadDashboardStats = async function() {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom', labels: { color: '#475569', font: { size: 11, weight: '600' } } } }
+                        plugins: { legend: { position: 'bottom', labels: { color: '#ffffff', font: { size: 14, weight: '600' } } } }
                     }
                 });
             }
@@ -380,18 +680,32 @@ window.loadDashboardStats = async function() {
                     data: {
                         labels: stats.recent_trend_days.map(t => t.date),
                         datasets: [
-                            { label: 'Lượt quét', data: stats.recent_trend_days.map(t => t.scans), borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.1)', tension: 0.3, fill: false },
-                            { label: 'Nguy cơ cao', data: stats.recent_trend_days.map(t => t.threats), borderColor: '#e11d48', backgroundColor: 'rgba(225, 29, 72, 0.1)', tension: 0.3, fill: false }
-                        ]
+                            {
+                                label: 'Lượt quét', 
+                                data: stats.recent_trend_days.map(t => t.scans), 
+                                borderColor: '#38bdf8', // Xanh dương sáng (Sky blue)
+                                backgroundColor: 'rgba(56, 189, 248, 0.2)', 
+                                tension: 0.3, 
+                                fill: false 
+                                },
+                                { 
+                                label: 'Nguy cơ cao', 
+                                data: stats.recent_trend_days.map(t => t.threats), 
+                                borderColor: '#f4365e', // Đỏ hồng sáng (Rose)
+                                backgroundColor: 'rgba(244, 63, 94, 0.2)', 
+                                tension: 0.3, 
+                                fill: false 
+                        }
+                    ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            x: { ticks: { color: '#64748b', font: { weight: '600' } }, grid: { color: '#f1f5f9' } },
-                            y: { ticks: { color: '#64748b', font: { weight: '600' } }, grid: { color: '#f1f5f9' } }
+                            x: { ticks: { color: '#ffff', font: { weight: '600' } }, grid: { color: '#f1f5f9' } },
+                            y: { ticks: { color: '#ffff', font: { weight: '600' } }, grid: { color: '#f1f5f9' } }
                         },
-                        plugins: { legend: { labels: { color: '#475569', font: { size: 11, weight: '600' } } } }
+                        plugins: { legend: { labels: { color: '#ffff', font: { size: 14, weight: '600' } } } }
                     }
                 });
             }
@@ -573,7 +887,51 @@ window.submitQuizAnswers = function() {
 // ==========================================
 const SEARCH_HISTORY_KEY = 'pataware_search_history';
 
-window.saveSearchHistory = function(query, type, risk_score, risk_level) {
+// Tạo thumbnail nhỏ gọn (base64) từ ảnh để lưu vào localStorage không tốn dung lượng
+window.createThumbnailFromBlob = function(file, maxDim = 80) {
+    return new Promise((resolve) => {
+        if (!file) return resolve(null);
+        try {
+            const img = new Image();
+            const blobUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(blobUrl);
+                const canvas = document.createElement('canvas');
+                let w = img.width || 1;
+                let h = img.height || 1;
+                if (w > h) {
+                    if (w > maxDim) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    }
+                } else {
+                    if (h > maxDim) {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                canvas.width = Math.max(w, 1);
+                canvas.height = Math.max(h, 1);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                try {
+                    resolve(canvas.toDataURL('image/jpeg', 0.65));
+                } catch (err) {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(blobUrl);
+                resolve(null);
+            };
+            img.src = blobUrl;
+        } catch (e) {
+            resolve(null);
+        }
+    });
+};
+
+window.saveSearchHistory = function(query, type, risk_score, risk_level, extra = {}) {
     if (!query || typeof query !== 'string') return;
     try {
         let history = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
@@ -586,6 +944,10 @@ window.saveSearchHistory = function(query, type, risk_score, risk_level) {
             type: type || 'text',
             risk_score: typeof risk_score === 'number' ? risk_score : 0,
             risk_level: risk_level || 'SAFE',
+            thumbnail: extra.thumbnail || null,
+            imageCount: extra.imageCount || 0,
+            resultData: extra.resultData || null,
+            imagesList: extra.imagesList || [],
             date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         });
 
@@ -622,25 +984,51 @@ window.renderSearchHistory = function() {
                 badgeText = 'Cảnh báo';
             }
 
+            // Xử lý hiển thị trực quan cho mục Lịch sử Hình ảnh
+            if (item.type === 'image') {
+                const thumbHtml = item.thumbnail
+                    ? `<img src="${item.thumbnail}" class="w-8 h-8 object-cover rounded-lg border border-cyan-400/60 shadow-xs flex-shrink-0 bg-slate-900" alt="Ảnh đã quét" />`
+                    : `<div class="w-8 h-8 rounded-lg bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-cyan-400 text-xs"></i></div>`;
+
+                const displayTitle = item.query.length > 22 ? item.query.slice(0, 22) + '...' : item.query;
+
+                return `
+                    <div class="group inline-flex items-center gap-1.5 p-1 pr-2.5 rounded-xl bg-slate-800/95 border border-slate-700/80 hover:border-cyan-400 hover:bg-slate-800 transition-all text-xs shadow-sm">
+                        <button type="button" onclick="window.loadHistoryItem(${item.id})" 
+                                class="flex items-center gap-2 text-slate-100 hover:text-cyan-300 text-left cursor-pointer" 
+                                title="Xem lại kết quả kiểm tra hình ảnh: ${item.query}">
+                            ${thumbHtml}
+                            <div class="flex flex-col min-w-0 pr-1">
+                                <span class="font-medium text-[11px] text-slate-200 truncate max-w-[120px] sm:max-w-[170px]">${displayTitle}</span>
+                                <span class="text-[9px] text-slate-400">${item.date || 'Gần đây'}</span>
+                            </div>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${badgeBg}">${badgeText} (${item.risk_score})</span>
+                        </button>
+                        <button type="button" onclick="window.removeSearchItem(${item.id}); event.stopPropagation();" class="text-slate-500 hover:text-rose-400 ml-0.5 p-1 transition-colors cursor-pointer" title="Xóa mục này">
+                            <i class="fa-solid fa-xmark text-[11px]"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Xử lý hiển thị cho URL, Số điện thoại, Số tài khoản, Tin nhắn
             let typeIcon = 'fa-globe';
             if (item.type === 'phone') typeIcon = 'fa-phone';
             else if (item.type === 'bank_account') typeIcon = 'fa-building-columns';
-            else if (item.type === 'image') typeIcon = 'fa-image';
             else if (item.type === 'text') typeIcon = 'fa-comment-dots';
 
             const displayQuery = item.query.length > 28 ? item.query.slice(0, 28) + '...' : item.query;
-            const safeQueryAttr = encodeURIComponent(item.query);
 
             return `
                 <div class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700/80 hover:border-cyan-400 hover:bg-slate-800 transition-all text-xs shadow-sm">
-                    <button type="button" onclick="window.reRunSearch('${safeQueryAttr}', '${item.type}')" 
+                    <button type="button" onclick="window.loadHistoryItem(${item.id})" 
                             class="flex items-center gap-1.5 text-slate-100 hover:text-cyan-300 text-left cursor-pointer" 
                             title="Quét lại: ${item.query}">
                         <i class="fa-solid ${typeIcon} text-[11px] text-cyan-400"></i>
                         <span class="font-mono text-[12px] font-semibold">${displayQuery}</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeBg}">${badgeText}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeBg}">${badgeText} (${item.risk_score})</span>
                     </button>
-                    <button type="button" onclick="window.removeSearchItem(${item.id})" class="text-slate-400 hover:text-rose-400 ml-1 p-0.5 transition-colors cursor-pointer" title="Xóa mục này">
+                    <button type="button" onclick="window.removeSearchItem(${item.id}); event.stopPropagation();" class="text-slate-400 hover:text-rose-400 ml-1 p-0.5 transition-colors cursor-pointer" title="Xóa mục này">
                         <i class="fa-solid fa-xmark text-[12px]"></i>
                     </button>
                 </div>
@@ -648,6 +1036,45 @@ window.renderSearchHistory = function() {
         }).join('');
     } catch (e) {
         console.error("Lỗi hiển thị lịch sử tìm kiếm:", e);
+    }
+};
+
+// Hàm tải và tái hiện lại kết quả quét từ lịch sử
+window.loadHistoryItem = function(id) {
+    try {
+        const history = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+        const item = history.find(h => h.id === id);
+        if (!item) return;
+
+        // Nếu là mục hình ảnh: Tái hiện đầy đủ kết quả quét cùng thumbnail
+        if (item.type === 'image') {
+            if (item.resultData) {
+                window.scannedImagesList = item.imagesList && item.imagesList.length > 0 
+                    ? item.imagesList 
+                    : (item.thumbnail ? [{ name: item.query, url: item.thumbnail }] : []);
+                window.currentPreviewUrl = item.thumbnail || null;
+                window.renderScanResult(item.resultData);
+            } else {
+                const simData = runLocalScanSimulation(item.query, 'image');
+                simData.risk_score = item.risk_score;
+                simData.risk_level = item.risk_level;
+                window.renderScanResult(simData);
+            }
+            return;
+        }
+
+        // Nếu là URL, STK, Số điện thoại hoặc Text: nạp vào ô tìm kiếm và quét
+        const inputField = document.getElementById('scanInput');
+        if (inputField) {
+            inputField.value = item.query;
+            inputField.focus();
+        }
+        if (typeof window.clearSelectedImage === 'function') {
+            window.clearSelectedImage();
+        }
+        window.performScan();
+    } catch (e) {
+        console.error("Lỗi khi nạp mục lịch sử:", e);
     }
 };
 
@@ -700,28 +1127,66 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Hỗ trợ dán ảnh chụp màn hình trực tiếp bằng Ctrl + V vào ô tìm kiếm
+        // Hỗ trợ dán ảnh chụp màn hình trực tiếp bằng Ctrl + V vào ô tìm kiếm (Hỗ trợ nhiều ảnh)
         scanInput.addEventListener('paste', function(e) {
             const items = (e.clipboardData || window.clipboardData)?.items;
             if (items) {
+                const pastedFiles = [];
                 for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf('image') !== -1) {
+                    if (items[i].type && items[i].type.indexOf('image') !== -1) {
                         const file = items[i].getAsFile();
-                        if (file) {
-                            window.selectedImageFile = file;
-                            const nameEl = document.getElementById('imageFileName');
-                            const labelEl = document.getElementById('imageFileLabel');
-                            if (labelEl) {
-                                labelEl.textContent = 'Ảnh chụp màn hình vừa dán (' + (file.size / 1024).toFixed(1) + ' KB)';
-                            }
-                            if (nameEl) nameEl.classList.remove('hidden');
-                        }
-                        break;
+                        if (file) pastedFiles.push(file);
                     }
+                }
+                if (pastedFiles.length > 0) {
+                    window.addSelectedImages(pastedFiles, 'Ảnh dán chụp màn hình');
+                }
+            }
+        });
+
+        // Hỗ trợ Kéo & Thả nhiều ảnh (Drag and Drop) trực tiếp vào ô tìm kiếm
+        scanInput.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('border-cyan-500', 'bg-cyan-50/40');
+        });
+
+        scanInput.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-cyan-500', 'bg-cyan-50/40');
+        });
+
+        scanInput.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-cyan-500', 'bg-cyan-50/40');
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                const imgFiles = Array.from(files).filter(f => (f.type && f.type.startsWith('image/')) || f.name.match(/\.(png|jpe?g|webp|gif|bmp)$/i));
+                if (imgFiles.length > 0) {
+                    window.addSelectedImages(imgFiles);
                 }
             }
         });
     }
+
+    // Cho phép dán ảnh (Ctrl + V) bất kỳ đâu trên trang web để thuận tiện nhất cho người dùng
+    window.addEventListener('paste', function(e) {
+        if (e.target.tagName === 'INPUT' || (e.target.tagName === 'TEXTAREA' && e.target.id !== 'scanInput')) {
+            return;
+        }
+        const items = (e.clipboardData || window.clipboardData)?.items;
+        if (items) {
+            const pastedFiles = [];
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type && items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) pastedFiles.push(file);
+                }
+            }
+            if (pastedFiles.length > 0) {
+                window.addSelectedImages(pastedFiles, 'Ảnh dán chụp màn hình');
+            }
+        }
+    });
 
     window.loadDashboardStats();
     window.loadStories();

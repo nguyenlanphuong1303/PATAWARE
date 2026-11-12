@@ -1,5 +1,12 @@
 {
     "editor.unicodeHighlight.nonBasicASCII": false,
     "editor.unicodeHighlight.ambiguousCharacters": false,
-    "editor.unicodeHighlight.invisibleCharacters": true
+    "editor.unicodeHighlight.invisibleCharacters": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/venv": true,
+        "**/.venv": true
+    }
 }

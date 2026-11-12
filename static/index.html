@@ -36,16 +36,12 @@
 
     <section id="scanner" class="py-12 px-4 max-w-5xl mx-auto">
         <div class="text-center mb-10">
-            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-bold mb-4 shadow-sm">
-                <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
-                <span>Hybrid Risk Engine v1.0 • Tích hợp AI & Kỹ thuật Mạng</span>
-            </div>
             <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight text-slate-900">
                 Phát hiện & Ngăn chặn <br class="hidden sm:inline"/>
-                <span class="bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 bg-clip-text text-transparent">Lừa Đảo Trực Tuyến Đa Tầng</span>
+                <span class="bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 bg-clip-text text-transparent">Lừa Đảo Trực Tuyến</span>
             </h1>
             <p class="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-                Kiểm tra tức thì đường dẫn URL, số tài khoản ngân hàng, số điện thoại, kịch bản thao túng tâm lý hoặc tải ảnh chụp màn hình để bóc tách bằng OCR.
+                Kiểm tra tức thì đường dẫn URL, số tài khoản ngân hàng, số điện thoại, kịch bản thao túng tâm lý hoặc tải ảnh chụp màn hình.
             </p>
         </div>
 
@@ -64,22 +60,77 @@
                                 title="Đính kèm file hoặc ảnh bóc tách (OCR)" 
                                 class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm">
                             <i class="fa-solid fa-paperclip text-slate-500"></i>
-                            <i class="fa-solid fa-image text-cyan-600"></i>
+                            <i class="fa-solid fa-images text-cyan-600"></i>
                             <span>Thêm file, ảnh</span>
                         </button>
-                        <input type="file" id="imageFileInput" accept="image/*,.pdf" class="hidden" onchange="previewSelectedImage(event)">
+                        <input type="file" id="imageFileInput" accept="image/*,.pdf" multiple class="hidden" onchange="previewSelectedImage(event)">
                     </div>
                 </div>
 
-                <!-- Thẻ hiển thị khi đã chọn file/ảnh -->
-                <div id="imageFileName" class="hidden mt-3 flex items-center justify-between bg-sky-50 border border-sky-200 px-4 py-2.5 rounded-xl text-xs text-sky-800 font-medium">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-solid fa-file-image text-cyan-600 text-base"></i>
-                        <span id="imageFileLabel"></span>
+                <!-- Khung hiển thị xem trước danh sách hình ảnh/file (Multi-Image Preview Card) -->
+                <div id="imageFileName" class="hidden mt-3 p-3.5 bg-gradient-to-r from-sky-50/90 via-cyan-50/70 to-blue-50/50 border border-cyan-200/90 rounded-2xl shadow-sm transition-all duration-300">
+                    <!-- Thanh tiêu đề điều khiển -->
+                    <div class="flex items-center justify-between gap-3 pb-2.5 border-b border-cyan-100/80">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-300">
+                                <i class="fa-solid fa-images mr-1.5 text-cyan-600"></i>
+                                <span id="imageCountText">0 ảnh sẵn sàng quét OCR</span>
+                            </span>
+                            <span class="text-[11px] text-slate-500 hidden sm:inline-flex items-center gap-1">
+                                <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                                <span>Hệ thống sẽ tự động bóc tách chữ từ tất cả các ảnh và phân tích nguy cơ</span>
+                            </span>
+                        </div>
+
+                        <!-- Các nút thao tác nhanh: Thêm tiếp & Xóa tất cả -->
+                        <div class="flex items-center space-x-2 flex-shrink-0">
+                            <button type="button" onclick="document.getElementById('imageFileInput').click()" 
+                                    class="px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-cyan-700 hover:text-cyan-800 border border-cyan-200 text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer" title="Chọn thêm ảnh khác">
+                                <i class="fa-solid fa-plus text-[11px]"></i>
+                                <span>Thêm ảnh</span>
+                            </button>
+                            <button type="button" onclick="clearSelectedImage()" 
+                                    class="px-2 py-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1" title="Xóa tất cả ảnh đã chọn">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                                <span class="hidden sm:inline">Xóa hết</span>
+                            </button>
+                        </div>
                     </div>
-                    <button type="button" onclick="clearSelectedImage()" class="text-slate-400 hover:text-rose-500 p-1" title="Xóa file/ảnh đã chọn">
-                        <i class="fa-solid fa-xmark text-sm"></i>
-                    </button>
+
+                    <!-- Lưới hiển thị danh sách Thumbnail từng ảnh (Grid Preview) -->
+                    <div id="imagePreviewGrid" class="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                        <!-- Các ảnh thumbnail sẽ được render động từ script.js -->
+                    </div>
+                </div>
+
+                <!-- Modal phóng to ảnh đầy đủ (Lightbox Modal với điều hướng trước/sau) -->
+                <div id="imageLightboxModal" class="fixed inset-0 z-50 hidden bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target === this) window.closeImageModal()">
+                    <div class="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl p-4 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 w-full">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2 truncate pr-2">
+                                <i class="fa-solid fa-image text-cyan-600 flex-shrink-0"></i>
+                                <span id="lightboxTitle" class="truncate">Xem Trước Ảnh Đính Kèm</span>
+                            </h4>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <span id="lightboxCounter" class="text-xs text-slate-500 font-semibold px-2 py-0.5 bg-slate-100 rounded-md">1 / 1</span>
+                                <button type="button" onclick="window.closeImageModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="relative overflow-hidden mt-3 max-h-[75vh] min-h-[250px] flex items-center justify-center bg-slate-950/5 rounded-xl p-2 select-none">
+                            <!-- Nút ảnh trước (Previous) -->
+                            <button id="lightboxPrevBtn" type="button" onclick="window.lightboxPrev()" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white flex items-center justify-center shadow-lg transition-all cursor-pointer z-10" title="Ảnh trước (phím mũi tên trái)">
+                                <i class="fa-solid fa-chevron-left text-sm"></i>
+                            </button>
+                            <!-- Ảnh đầy đủ -->
+                            <img id="imageLightboxImg" src="" alt="Ảnh đầy đủ" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm" />
+                            <!-- Nút ảnh kế tiếp (Next) -->
+                            <button id="lightboxNextBtn" type="button" onclick="window.lightboxNext()" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white flex items-center justify-center shadow-lg transition-all cursor-pointer z-10" title="Ảnh tiếp theo (phím mũi tên phải)">
+                                <i class="fa-solid fa-chevron-right text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -90,7 +141,7 @@
                 <div class="flex justify-end">
                     <button type="button" onclick="performScan()" id="btnScan" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold text-sm shadow-lg shadow-cyan-500/25 flex items-center space-x-2 transition-all cursor-pointer">
                         <i class="fa-solid fa-shield-virus"></i>
-                        <span>Kiểm Trá</span>
+                        <span>Kiểm Tra Toàn Diện Ngay</span>
                     </button>
                 </div>
             </div>
@@ -127,11 +178,11 @@
             </div>
             <div class="mt-4 md:mt-0 flex space-x-3 text-xs">
                 <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
-                    <span class="text-slate-400 block">Lượt kiểm tra:</span>
+                    <span class="text-white block">Lượt kiểm tra:</span>
                     <span id="statTotalScans" class="text-lg font-bold text-cyan-400">0</span>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
-                    <span class="text-slate-400 block">Nguy cơ đã chặn:</span>
+                    <span class="text-white block">Nguy cơ đã chặn:</span>
                     <span id="statThreatsBlocked" class="text-lg font-bold text-rose-500">0</span>
                 </div>
             </div>

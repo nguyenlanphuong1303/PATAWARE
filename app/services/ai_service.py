@@ -1,8 +1,12 @@
 import os
 import json
 import re
+import logging
 from typing import Dict, Any, List
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 try:
     import google.generativeai as genai
@@ -51,8 +55,22 @@ class AiAnalysisService:
 
         return self._analyze_with_heuristic(content, input_type)
 
-    def _analyze_with_gemini(self, content: str, input_type: str) -> Dict[str, Any]:
-        """Phân tích chuyên sâu thông qua Google Gemini LLM API."""
+    def _call_gemini_raw(self, prompt: str):
+        """Thực thi gọi hàm SDK có cấu hình timeout nếu SDK hỗ trợ."""
+        try:
+            return self.model.generate_content(
+                prompt,
+                request_options={"timeout": 3.5}
+            )
+        except TypeError:
+            return self.model.generate_content(prompt)
+
+    def _analyze_with_gemini(self, content: str, input_type: str, timeout_seconds: float = 4.0) -> Dict[str, Any]:
+        """
+        Phân tích chuyên sâu thông qua Google Gemini LLM API.
+        Cơ chế Bảo vệ: Giới hạn timeout 4.0s thông qua ThreadPoolExecutor và request_options,
+        tránh làm chậm hoặc treo event loop / worker của FastAPI khi Google API nghẽn mạng.
+        """
         prompt = f"""
         Bạn là chuyên gia an ninh mạng phân tích lừa đảo trực tuyến tại Việt Nam.
         Hãy phân tích nội dung sau (Loại dữ liệu: {input_type}):
@@ -71,12 +89,30 @@ class AiAnalysisService:
             "confidence": <số thập phân từ 0.0 - 1.0>
         }}
         """
-        response = self.model.generate_content(prompt)
-        text_resp = response.text.strip()
-        # Loại bỏ các ký tự bọc markdown codeblock nếu có
-        text_resp = re.sub(r'^```json\s*', '', text_resp)
-        text_resp = re.sub(r'\s*```$', '', text_resp)
-        parsed = json.loads(text_resp)
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(self._call_gemini_raw, prompt)
+            response = future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            logger.warning(f"[AiService] Gemini API phản hồi quá {timeout_seconds}s. Tự động chuyển Heuristic.")
+            raise TimeoutError("Gemini API call timed out")
+        except Exception as e:
+            logger.warning(f"[AiService] Lỗi kết nối Gemini API: {e}. Tự động chuyển Heuristic.")
+            raise
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        text_resp = getattr(response, "text", "") or ""
+        text_resp = text_resp.strip()
+
+        # Trích xuất JSON từ chuỗi kết quả (chống trường hợp AI trả kèm văn bản giải thích hoặc markdown)
+        json_match = re.search(r'\{.*\}', text_resp, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group(0))
+        else:
+            raise ValueError("Không tìm thấy cấu trúc JSON hợp lệ trong phản hồi Gemini.")
+
         return {
             "score": float(parsed.get("score", 0)),
             "tactics_detected": parsed.get("tactics_detected", []),

@@ -1,11 +1,12 @@
 // ==============================================================================
-// PATAWARE BROWSER EXTENSION - SERVICE WORKER (BACKGROUND SCRIPT)
+// PATAWARE BROWSER EXTENSION - REAL-TIME INTERCEPTION BACKGROUND SERVICE WORKER
 // Bảo vệ thời gian thực: Chặn Lừa đảo, Cờ bạc/Cá độ & Nội dung người lớn (Parental Control)
 // ==============================================================================
 
+const API_QUICK_CHECK = "http://localhost:8000/api/v1/scan/quick-check";
 const API_ENDPOINT = "http://localhost:8000/api/v1/scan/inspect";
 
-// Bộ nhớ đệm kết quả kiểm tra (tránh gọi API lặp lại)
+// Bộ nhớ đệm kết quả kiểm tra (RAM Map + Storage Local)
 const scanCache = new Map();
 // Danh sách domain người dùng bấm "vẫn tiếp tục truy cập"
 const tempAllowedDomains = new Set();
@@ -24,7 +25,7 @@ chrome.runtime.onInstalled.addListener(() => {
         isParentalActive: true, 
         blockedCount: 0 
     });
-    console.log("[PATAWARE] Tiện ích Chống Lừa Đảo & Bảo Vệ Trẻ Em (Parental Control) đã sẵn sàng.");
+    console.log("[PATAWARE] Tiện ích Chống Lừa Đảo & Real-time Interception đã sẵn sàng.");
 });
 
 function getDomainFromUrl(url) {
@@ -53,7 +54,30 @@ function isExcludedUrl(url) {
     return false;
 }
 
-// Phân tích Heuristics chạy độc lập (0ms độ trễ)
+// Thuật toán khoảng cách Levenshtein chạy trực tiếp trên Client (0ms)
+function levenshteinDist(s1, s2) {
+    if (s1 === s2) return 0;
+    const l1 = s1.length, l2 = s2.length;
+    if (l1 === 0) return l2;
+    if (l2 === 0) return l1;
+    
+    const d = [];
+    for (let i = 0; i <= l1; i++) {
+        d[i] = [i];
+    }
+    for (let j = 0; j <= l2; j++) {
+        d[0][j] = j;
+    }
+    for (let i = 1; i <= l1; i++) {
+        for (let j = 1; j <= l2; j++) {
+            const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        }
+    }
+    return d[l1][l2];
+}
+
+// TẦNG 1: Phân tích Client-side Heuristics tức thì (Độ trễ 0ms)
 function analyzeHeuristics(url, domain) {
     const lower = (url + " " + domain).toLowerCase();
     const clean = lower.replace(/[^a-z0-9]/g, '');
@@ -94,47 +118,78 @@ function analyzeHeuristics(url, domain) {
         }
     }
 
-    // 3. Kiểm tra Punycode
+    // 3. Kiểm tra Punycode & Ký tự đồng hình (Homoglyph)
     if (score < 70 && domain.includes("xn--")) {
         score = 90;
         category = "PHISHING";
-        reasons.push("Tên miền sử dụng mã hóa Punycode xn-- (tấn công ký tự đồng hình giả mạo).");
+        reasons.push("Tên miền sử dụng mã hóa Punycode xn-- (dấu hiệu giả mạo ký tự đồng hình).");
     }
 
-    // 4. Mạo danh thương hiệu ngân hàng (Typosquatting)
+    // 4. Mạo danh thương hiệu (Typosquatting & Leetspeak & Levenshtein)
     if (score < 70) {
         const brands = [
-            { name: "Vietcombank", keys: ["vietcombank", "vietc0mbank", "vcb"] },
-            { name: "Techcombank", keys: ["techcombank", "tcb"] },
-            { name: "MBBank", keys: ["mbbank", "mb-bank", "mbbnk"] },
-            { name: "Shopee", keys: ["shopee", "sh0pee"] },
-            { name: "VNeID", keys: ["vneid", "dinhdanh"] },
-            { name: "MoMo", keys: ["momo-pay", "momo-vn"] }
+            { name: "Vietcombank", keys: ["vietcombank", "vcb"], official: "vietcombank.com.vn" },
+            { name: "Techcombank", keys: ["techcombank", "tcb"], official: "techcombank.com" },
+            { name: "MBBank", keys: ["mbbank", "mb-bank"], official: "mbbank.com.vn" },
+            { name: "BIDV", keys: ["bidv"], official: "bidv.com.vn" },
+            { name: "VietinBank", keys: ["vietinbank"], official: "vietinbank.vn" },
+            { name: "VPBank", keys: ["vpbank"], official: "vpbank.com.vn" },
+            { name: "ACB", keys: ["acbbank", "acb-bank"], official: "acb.com.vn" },
+            { name: "Shopee", keys: ["shopee"], official: "shopee.vn" },
+            { name: "VNeID", keys: ["vneid", "dinhdanh"], official: "vneid.gov.vn" },
+            { name: "Bộ Công An", keys: ["bocongan", "dichvucong-bca"], official: "bocongan.gov.vn" },
+            { name: "MoMo", keys: ["momo-pay", "momo-vn"], official: "momo.vn" },
+            { name: "ZaloPay", keys: ["zalopay"], official: "zalopay.vn" },
+            { name: "Điện Lực EVN", keys: ["dienluc-evn", "evn-tracuu"], official: "evn.com.vn" }
         ];
 
-        const riskyTlds = [".xyz", ".top", ".site", ".cc", ".icu", ".vip", ".club", ".space", ".work", ".cfd"];
+        // Chuẩn hóa Leetspeak (0 -> o, 1 -> l/i, 3 -> e, 5 -> s)
+        const leetClean = clean.replace(/0/g, 'o').replace(/1/g, 'l').replace(/3/g, 'e').replace(/5/g, 's');
+        const riskyTlds = [".xyz", ".top", ".site", ".cc", ".icu", ".vip", ".club", ".space", ".work", ".cfd", ".online", ".me"];
         const hasRiskyTld = riskyTlds.some(tld => domain.endsWith(tld));
 
         for (const b of brands) {
+            const isOfficial = domain === b.official || domain.endsWith("." + b.official);
+            if (isOfficial) continue;
+
             for (const k of b.keys) {
-                if (lower.includes(k)) {
-                    if (!domain.endsWith(".com.vn") && !domain.endsWith(".vn") && !domain.endsWith(".techcombank.com")) {
-                        score = 92;
-                        category = "PHISHING";
-                        reasons.push(`Phát hiện dấu hiệu mạo danh (Typosquatting) thương hiệu ${b.name}`);
-                        if (hasRiskyTld) {
-                            score = 98;
-                            reasons.push("Sử dụng đuôi tên miền giá rẻ rủi ro cao thường thấy trong các đợt tấn công lừa đảo.");
+                // Xuất hiện từ khóa hoặc qua Leetspeak
+                if (lower.includes(k) || leetClean.includes(k)) {
+                    score = hasRiskyTld ? 98 : 92;
+                    category = "PHISHING";
+                    reasons.push(`Phát hiện dấu hiệu mạo danh thương hiệu ${b.name} (Typosquatting/Leetspeak).`);
+                    if (hasRiskyTld) {
+                        reasons.push("Sử dụng đuôi tên miền giá rẻ rủi ro cao thường thấy trong các chiến dịch lừa đảo.");
+                    }
+                    break;
+                }
+
+                // Khoảng cách Levenshtein trên token
+                const tokens = domain.split(/[-.]/);
+                for (const tok of tokens) {
+                    if (tok.length >= 4 && Math.abs(tok.length - k.length) <= 2) {
+                        const dist = levenshteinDist(tok, k);
+                        if (dist === 1 || dist === 2) {
+                            score = 88;
+                            category = "PHISHING";
+                            reasons.push(`Cụm từ '${tok}' có độ tương đồng rất cao (${dist} ký tự sai khác) với '${b.name}'.`);
+                            break;
                         }
-                        break;
                     }
                 }
             }
+            if (score >= 70) break;
         }
     }
 
-    // 5. Cấu trúc lừa đảo bẫy OTP
-    if (score < 70 && (lower.includes("dang-nhap-otp") || lower.includes("nhantien-hotro") || lower.includes("treo-thuong-tet"))) {
+    // 5. Cấu trúc lừa đảo bẫy OTP / giải ngân / nhận quà
+    if (score < 70 && (
+        lower.includes("dang-nhap-otp") || 
+        lower.includes("xac-thuc-smart-otp") || 
+        lower.includes("nhantien-hotro") || 
+        lower.includes("treo-thuong-tet") || 
+        lower.includes("nhan-qua-tri-an")
+    )) {
         score = 95;
         category = "PHISHING";
         reasons.push("Đường dẫn chứa cấu trúc giả mạo thu thập mã OTP hoặc bẫy nhận tiền hỗ trợ.");
@@ -149,8 +204,8 @@ function analyzeHeuristics(url, domain) {
     };
 }
 
-// Kiểm tra trang web với PATAWARE Backend API
-async function checkUrlWithPataware(url) {
+// TẦNG 2: Kiểm tra ngầm bất đồng bộ với Pataware Backend API (/quick-check)
+async function checkUrlWithBackend(url) {
     const domain = getDomainFromUrl(url);
 
     if (scanCache.has(domain)) {
@@ -161,50 +216,60 @@ async function checkUrlWithPataware(url) {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1800);
+        const timeoutId = setTimeout(() => controller.abort(), 1200); // 1.2s timeout
 
-        const res = await fetch(API_ENDPOINT, {
+        const res = await fetch(API_QUICK_CHECK, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input_type: "url", content: url }),
+            body: JSON.stringify({ url: url }),
             signal: controller.signal
         });
         clearTimeout(timeoutId);
 
         if (res.ok) {
             const data = await res.json();
-            // Trích xuất category nếu có
-            let cat = "PHISHING";
-            const indStr = (data.scam_indicators || []).join(" ").toLowerCase();
-            if (indStr.includes("cờ bạc") || indStr.includes("cá cược") || indStr.includes("gambling")) {
-                cat = "GAMBLING";
-            } else if (indStr.includes("người lớn") || indStr.includes("parental") || indStr.includes("adult")) {
-                cat = "ADULT";
-            }
-
             result = {
-                is_malicious: (data.risk_score >= 70),
+                is_malicious: Boolean(data.is_malicious),
                 risk_score: data.risk_score || 0,
                 risk_level: data.risk_level || "SAFE",
-                category: cat,
-                reasons: data.scam_indicators || []
+                category: data.category || "PHISHING",
+                reasons: data.reasons || []
             };
         }
-    } catch {
-        // Fallback sang Heuristics
+    } catch (e) {
+        // Nếu API backend offline, không làm gián đoạn người dùng
     }
 
-    if (!result) {
-        result = analyzeHeuristics(url, domain);
+    if (result) {
+        scanCache.set(domain, result);
+        // Lưu persistent cache
+        chrome.storage.local.set({ [domain]: result });
     }
 
-    scanCache.set(domain, result);
     return result;
 }
 
-// Chặn điều hướng trước khi tải trang
+// Hàm kích hoạt chuyển hướng cảnh báo đỏ (Warning Page)
+function triggerWarning(tabId, url, domain, result) {
+    chrome.action.setBadgeText({ tabId: tabId, text: "!" });
+    chrome.action.setBadgeBackgroundColor({ tabId: tabId, color: "#EF4444" });
+
+    const warningUrl = chrome.runtime.getURL("warning.html") + 
+        `?url=${encodeURIComponent(url)}` +
+        `&domain=${encodeURIComponent(domain)}` +
+        `&score=${encodeURIComponent(result.risk_score)}` +
+        `&level=${encodeURIComponent(result.risk_level)}` +
+        `&category=${encodeURIComponent(result.category || "PHISHING")}` +
+        `&reasons=${encodeURIComponent(JSON.stringify(result.reasons))}`;
+
+    chrome.tabs.update(tabId, { url: warningUrl });
+}
+
+// ==============================================================================
+// REAL-TIME INTERCEPTION PIPELINE: CHẶN TRƯỚC KHI TRANG TẢI (0MS LATENCY)
+// ==============================================================================
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-    if (details.frameId !== 0) return;
+    if (details.frameId !== 0) return; // Chỉ áp dụng cho khung chính (Main Frame)
 
     const url = details.url;
     if (isExcludedUrl(url)) return;
@@ -215,32 +280,54 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     const storage = await chrome.storage.local.get(["isShieldActive", "isParentalActive", "blockedCount"]);
     if (storage.isShieldActive === false) return;
 
-    const result = await checkUrlWithPataware(url);
+    // --- BƯỚC 1: KIỂM TRA BỘ NHỚ ĐỆM (CACHE) TRƯỚC (0ms) ---
+    if (scanCache.has(domain)) {
+        const cached = scanCache.get(domain);
+        if (cached && cached.is_malicious) {
+            if ((cached.category === "GAMBLING" || cached.category === "ADULT") && storage.isParentalActive === false) {
+                return;
+            }
+            triggerWarning(details.tabId, url, domain, cached);
+            return;
+        }
+    }
 
-    if (result && result.is_malicious) {
-        // Nếu là trang cờ bạc hoặc người lớn nhưng người dùng tắt Parental Control thì bỏ qua
-        if ((result.category === "GAMBLING" || result.category === "ADULT") && storage.isParentalActive === false) {
+    // --- BƯỚC 2: CHẠY HEURISTIC TỨC THÌ TRÊN CLIENT-SIDE (0ms ĐỘ TRỄ) ---
+    const localResult = analyzeHeuristics(url, domain);
+    if (localResult.is_malicious) {
+        if ((localResult.category === "GAMBLING" || localResult.category === "ADULT") && storage.isParentalActive === false) {
             return;
         }
 
         const newCount = (storage.blockedCount || 0) + 1;
         chrome.storage.local.set({ blockedCount: newCount });
+        scanCache.set(domain, localResult);
 
-        chrome.action.setBadgeText({ tabId: details.tabId, text: "!" });
-        chrome.action.setBadgeBackgroundColor({ tabId: details.tabId, color: "#EF4444" });
-
-        const warningUrl = chrome.runtime.getURL("warning.html") + 
-            `?url=${encodeURIComponent(url)}` +
-            `&domain=${encodeURIComponent(domain)}` +
-            `&score=${encodeURIComponent(result.risk_score)}` +
-            `&level=${encodeURIComponent(result.risk_level)}` +
-            `&category=${encodeURIComponent(result.category || "PHISHING")}` +
-            `&reasons=${encodeURIComponent(JSON.stringify(result.reasons))}`;
-
-        chrome.tabs.update(details.tabId, { url: warningUrl });
-    } else {
-        chrome.action.setBadgeText({ tabId: details.tabId, text: "" });
+        // Chặn và điều hướng sang trang cảnh báo NGAY LẬP TỨC (0ms) trước khi mạng tải xong!
+        triggerWarning(details.tabId, url, domain, localResult);
+        return;
     }
+
+    // --- BƯỚC 3: GỬI NGẦM VỀ API BACKEND KIỂM TRA ĐA TẦNG (ASYNC CHECK) ---
+    checkUrlWithBackend(url).then(async (backendResult) => {
+        if (backendResult && backendResult.is_malicious) {
+            if ((backendResult.category === "GAMBLING" || backendResult.category === "ADULT") && storage.isParentalActive === false) {
+                return;
+            }
+
+            // Kiểm tra xem tab hiện tại có còn đang ở domain đó không
+            try {
+                const currentTab = await chrome.tabs.get(details.tabId);
+                if (currentTab && getDomainFromUrl(currentTab.url) === domain) {
+                    const newCount = (storage.blockedCount || 0) + 1;
+                    chrome.storage.local.set({ blockedCount: newCount });
+                    triggerWarning(details.tabId, url, domain, backendResult);
+                }
+            } catch {
+                // Tab đã đóng
+            }
+        }
+    });
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -255,8 +342,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const url = tabs[0].url;
                 const domain = getDomainFromUrl(url);
                 const isExcluded = isExcludedUrl(url);
-                const check = isExcluded ? { is_malicious: false, risk_score: 5, risk_level: "SAFE", category: "NONE", reasons: ["Trang web an toàn mặc định."] } : await checkUrlWithPataware(url);
-                sendResponse({ url, domain, ...check });
+                if (isExcluded) {
+                    sendResponse({ url, domain, is_malicious: false, risk_score: 5, risk_level: "SAFE", category: "NONE", reasons: ["Trang web an toàn mặc định."] });
+                } else {
+                    // Ưu tiên Heuristic + Backend
+                    const local = analyzeHeuristics(url, domain);
+                    if (local.is_malicious) {
+                        sendResponse({ url, domain, ...local });
+                    } else {
+                        const backend = await checkUrlWithBackend(url);
+                        sendResponse({ url, domain, ...(backend || local) });
+                    }
+                }
             } else {
                 sendResponse({ error: "Không lấy được thông tin tab" });
             }

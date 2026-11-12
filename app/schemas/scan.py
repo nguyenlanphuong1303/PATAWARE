@@ -36,3 +36,17 @@ class ScanResponse(BaseModel):
     domain_analysis: Optional[DomainAnalysisDetail] = None
     recommendations: List[str] = []
     scam_indicators: List[str] = []
+
+
+class QuickCheckRequest(BaseModel):
+    url: str
+
+
+class QuickCheckResponse(BaseModel):
+    url: str
+    domain: str
+    is_malicious: bool
+    risk_score: float
+    risk_level: str
+    category: str  # PHISHING, GAMBLING, ADULT, SAFE
+    reasons: List[str] = []

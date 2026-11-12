@@ -49,7 +49,9 @@ def call_gemini_smart(prompt: str, api_key: str) -> Optional[str]:
     """
     Gọi trực tiếp Google Gemini REST API với các model mới và thiết lập tính cách linh hoạt.
     """
-    models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-flash-latest"]
+    # Thử tối đa 2 model nhanh nhất để tránh kéo dài thời gian phản hồi khi mạng lag
+    models = ["gemini-1.5-flash", "gemini-2.0-flash"]
+    timeout_cfg = httpx.Timeout(connect=1.5, read=3.5, write=1.5, pool=1.5)
     
     system_instruction = (
         "Bạn là Trợ lý Trí tuệ Nhân tạo PATAWARE (Anti-Scam AI & Network Defense) - chuyên gia an ninh mạng thông minh. "
@@ -71,9 +73,8 @@ def call_gemini_smart(prompt: str, api_key: str) -> Optional[str]:
     for m in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         try:
-            with httpx.Client(timeout=5.0) as client:
+            with httpx.Client(timeout=timeout_cfg) as client:
                 res = client.post(url, json=payload, headers={"Content-Type": "application/json"})
-                print(f"[DEBUG] Model {m} status code: {res.status_code}") # In mã trạng thái
                 if res.status_code == 200:
                     data = res.json()
                     candidates = data.get("candidates", [])
@@ -81,10 +82,12 @@ def call_gemini_smart(prompt: str, api_key: str) -> Optional[str]:
                         parts = candidates[0].get("content", {}).get("parts", [])
                         if parts and "text" in parts[0]:
                             return parts[0]["text"].strip()
-                else:
-                    print(f"[DEBUG] Error response: {res.text}") # In lỗi chi tiết từ Google trả về
-        except Exception as e:
-            print(f"[DEBUG] Exception khi gọi model {m}: {str(e)}") # In lỗi kết nối/timeout
+                elif res.status_code in (401, 403):
+                    # Khóa API không hợp lệ hoặc bị cấm, dừng ngay lập tức không thử tiếp
+                    break
+        except (httpx.TimeoutException, httpx.RequestError):
+            continue
+        except Exception:
             continue
     return None
 

@@ -1,7 +1,12 @@
 import re
+import socket
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import tldextract
+
+logger = logging.getLogger(__name__)
 
 try:
     import Levenshtein
@@ -178,17 +183,45 @@ class DeepUrlAnalyzer:
         }
 
     @staticmethod
-    def check_domain_age(domain: str) -> Dict[str, Any]:
+    def _raw_whois_lookup(domain: str):
+        """Thực hiện truy vấn WHOIS với socket timeout cục bộ."""
+        old_timeout = socket.getdefaulttimeout()
+        try:
+            socket.setdefaulttimeout(2.5)
+            return whois.whois(domain)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+
+    @classmethod
+    def check_domain_age(cls, domain: str, timeout_seconds: float = 2.5) -> Dict[str, Any]:
         """
         Truy vấn thông tin WHOIS để xác định ngày đăng ký và tính tuổi tên miền theo số ngày.
         Tên miền dưới 30 ngày là dấu hiệu điển hình của hạ tầng lừa đảo dùng một lần.
+        Bảo vệ chặt chẽ: Giới hạn timeout 2.5s qua ThreadPoolExecutor và socket timeout,
+        chống blocking toàn bộ worker FastAPI khi WHOIS server phản hồi chậm hoặc bị treo.
         """
-        if not whois:
+        if not whois or not domain:
             return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
 
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
-            w = whois.whois(domain)
-            creation_date = w.creation_date
+            future = executor.submit(cls._raw_whois_lookup, domain)
+            w = future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            logger.debug(f"[UrlAnalyzer] WHOIS query timeout ({timeout_seconds}s) cho domain: {domain}")
+            return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
+        except socket.timeout:
+            logger.debug(f"[UrlAnalyzer] Socket timeout khi kết nối WHOIS cho domain: {domain}")
+            return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
+        except Exception as e:
+            logger.debug(f"[UrlAnalyzer] Lỗi ngoại lệ khi truy vấn WHOIS ({domain}): {e}")
+            return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
+        finally:
+            # wait=False để không chặn thread chính nếu worker thread chưa kịp thoát
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        try:
+            creation_date = getattr(w, "creation_date", None)
 
             # WHOIS có thể trả về một danh sách các ngày
             if isinstance(creation_date, list) and creation_date:
@@ -198,7 +231,7 @@ class DeepUrlAnalyzer:
                 return {"age_days": None, "creation_date": None, "is_new_domain": False, "reasons": []}
 
             # Chuẩn hóa múi giờ
-            if creation_date.tzinfo is not None:
+            if hasattr(creation_date, "tzinfo") and creation_date.tzinfo is not None:
                 now = datetime.now(timezone.utc)
             else:
                 now = datetime.utcnow()
@@ -215,13 +248,13 @@ class DeepUrlAnalyzer:
 
             return {
                 "age_days": age_days,
-                "creation_date": creation_date.isoformat(),
+                "creation_date": creation_date.isoformat() if hasattr(creation_date, "isoformat") else str(creation_date),
                 "is_new_domain": is_new,
                 "is_recent_domain": is_recent,
                 "reasons": reasons
             }
-        except Exception:
-            # Xử lý ngoại lệ nếu WHOIS bị chặn hoặc tên miền quốc gia không hỗ trợ
+        except Exception as parse_err:
+            logger.debug(f"[UrlAnalyzer] Lỗi bóc tách creation_date từ WHOIS: {parse_err}")
             return {
                 "age_days": None,
                 "creation_date": None,

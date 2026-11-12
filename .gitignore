@@ -1,14 +1,27 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Environment variables
 .env
-.venv
+.env.*
+!.env.example
+
+# Virtual environments
+.venv/
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
+
+# Databases & Caches
 *.db
 *.sqlite3
 .pytest_cache/
+
+# User uploads & logs
 uploads/
 *.log
